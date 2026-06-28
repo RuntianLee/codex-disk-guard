@@ -20,6 +20,10 @@ while [ $# -gt 0 ]; do
 done
 
 state="$(cdt_state_dir)"; mkdir -p "$state"
+# Files this command writes (passive mode):
+#   $state/report.log   — one result line appended per run (history)
+#   $state/last-sample  — previous run's ts+counter, overwritten each run (used for the delta)
+# (--measure writes no persistent file; see cdt_measure in lib/common.sh.)
 report="$state/report.log"; last="$state/last-sample"
 now="$(date +%s)"
 wal="$(cdt_wal_size)"

@@ -5,6 +5,10 @@
 CDT_SQLITE="${CDT_SQLITE:-$(command -v sqlite3 2>/dev/null || echo /usr/bin/sqlite3)}"
 
 cdt_codex_home() { printf '%s' "${CODEX_HOME:-$HOME/.codex}"; }
+# Report/state directory (default ~/.local/state/codex-disk). Everything this tool
+# persists lives here: report.log + last-sample (codex-disk-check), bench/*.json
+# (codex-disk-bench), and the launchd jobs' *.out/err.log. Kept OUTSIDE ~/.codex so
+# monitoring never counts its own writes. Removed entirely by codex-disk-uninstall.
 cdt_state_dir()  { printf '%s' "${CDT_STATE_DIR:-$HOME/.local/state/codex-disk}"; }
 cdt_logs_db()    { printf '%s/logs_2.sqlite' "$(cdt_codex_home)"; }
 

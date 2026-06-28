@@ -106,6 +106,25 @@ All settings are environment variables with sensible defaults:
 | `CDT_PREFIX` | `~/.local/bin` | Install location for the commands |
 | `CDT_AGENTS_DIR` | `~/Library/LaunchAgents` | Install location for the launchd plists |
 
+## Where it writes files (per feature)
+
+Everything this tool writes lives under your home directory, is configurable, and is fully removed by `codex-disk-uninstall`. Exactly which path each feature writes to:
+
+| Command / feature | Writes to |
+|---|---|
+| `setup.sh` (install) | commands → `~/.local/bin/` (and `~/.local/bin/lib/common.sh`); timers → `~/Library/LaunchAgents/com.user.codex-disk-maintain.plist` and `…codex-disk-check.plist`; creates the report dir `~/.local/state/codex-disk/` |
+| `codex-disk-check` (passive) | `~/.local/state/codex-disk/report.log` (one line appended per run) and `~/.local/state/codex-disk/last-sample` (overwritten each run) |
+| `codex-disk-check --measure` | **nothing persistent** — a `mktemp` temp file that is deleted immediately; the result is printed to your terminal/stdout |
+| `codex-disk-maintain` | modifies `~/.codex/logs_2.sqlite` (its maintenance target — the only file it changes); writes nothing else |
+| `codex-disk-bench` | `~/.local/state/codex-disk/bench/<stage>.json` (+ a `.residual` marker) for each stage |
+| `codex-disk-cleanup --apply` | **deletes** junk under `~/.codex`; creates no files |
+| daily `launchd` jobs | their stdout/stderr → `~/.local/state/codex-disk/maintain.out.log`, `maintain.err.log`, `check.out.log`, `check.err.log` |
+| `codex-disk-uninstall` | removes all of the above |
+
+Paths are overridable: `CDT_PREFIX` (commands), `CDT_AGENTS_DIR` (timers), `CDT_STATE_DIR` (reports). The report dir is kept **outside** `~/.codex` on purpose, so monitoring never counts its own writes.
+
+**Want zero files?** Skip `setup.sh` and run the on-demand commands directly from the repo (`./bin/codex-disk-check --measure 60`, `./bin/codex-disk-maintain`, `./bin/codex-disk-cleanup`). Those print to the terminal only and persist nothing — at the cost of the daily timers, the no-sudo passive rate, the `report.log` history, and the cross-session bench table.
+
 ## Safety
 
 - **Maintenance only ever touches `logs_2.sqlite`.** It never reads or writes `sessions/` or `memories/`.

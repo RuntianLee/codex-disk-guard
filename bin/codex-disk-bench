@@ -11,6 +11,7 @@ if [ -f "$HERE/../lib/common.sh" ]; then source "$HERE/../lib/common.sh";
 elif [ -f "$HERE/lib/common.sh" ]; then source "$HERE/lib/common.sh";
 else echo "common.sh not found" >&2; exit 1; fi
 
+# Per-stage results are written here: $CDT_STATE_DIR/bench/<stage>.json (+ <stage>.residual).
 BENCH_DIR="$(cdt_state_dir)/bench"
 mkdir -p "$BENCH_DIR"
 

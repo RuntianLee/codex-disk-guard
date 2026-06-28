@@ -106,6 +106,25 @@ codex-disk-bench report           # 出对照表(无需 sudo)
 | `CDT_PREFIX` | `~/.local/bin` | 命令安装位置 |
 | `CDT_AGENTS_DIR` | `~/Library/LaunchAgents` | launchd plist 安装位置 |
 
+## 各功能会写哪些文件(按功能)
+
+本工具写的所有东西都在你的家目录下、可配置、并能被 `codex-disk-uninstall` 完全清除。每个功能具体写到哪个路径:
+
+| 命令 / 功能 | 写入路径 |
+|---|---|
+| `setup.sh`(安装) | 命令 → `~/.local/bin/`(及 `~/.local/bin/lib/common.sh`);定时任务 → `~/Library/LaunchAgents/com.user.codex-disk-maintain.plist`、`…codex-disk-check.plist`;创建报告目录 `~/.local/state/codex-disk/` |
+| `codex-disk-check`(被动模式) | `~/.local/state/codex-disk/report.log`(每次运行追加一行)和 `~/.local/state/codex-disk/last-sample`(每次覆盖) |
+| `codex-disk-check --measure` | **不留持久文件** —— 仅用一个 `mktemp` 临时文件且立即删除;结果打印到终端/stdout |
+| `codex-disk-maintain` | 修改 `~/.codex/logs_2.sqlite`(它要维护的目标,也是唯一改动的文件);不写其它任何文件 |
+| `codex-disk-bench` | 每个阶段写 `~/.local/state/codex-disk/bench/<阶段>.json`(及 `.residual` 标记) |
+| `codex-disk-cleanup --apply` | **删除** `~/.codex` 下的垃圾;不创建任何文件 |
+| 每日 `launchd` 定时任务 | 标准输出/错误 → `~/.local/state/codex-disk/maintain.out.log`、`maintain.err.log`、`check.out.log`、`check.err.log` |
+| `codex-disk-uninstall` | 移除以上全部 |
+
+路径可覆盖:`CDT_PREFIX`(命令)、`CDT_AGENTS_DIR`(定时任务)、`CDT_STATE_DIR`(报告)。报告目录**刻意放在 `~/.codex` 之外**,这样监测不会把自己写报告也算进 codex 的写入量。
+
+**想要零文件?** 不跑 `setup.sh`,直接从仓库目录按需运行命令(`./bin/codex-disk-check --measure 60`、`./bin/codex-disk-maintain`、`./bin/codex-disk-cleanup`)。这些只打印到终端、不留任何文件——代价是失去每日定时、免 sudo 的被动速率、`report.log` 历史、以及跨会话的 bench 对比表。
+
 ## 安全性
 
 - **维护只会操作 `logs_2.sqlite`**,永不读写 `sessions/` 或 `memories/`。
