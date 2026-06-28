@@ -74,6 +74,11 @@ codex-disk-check --measure 60    # precise active write rate over 60s (sudo); us
 codex-disk-maintain              # prune old logs + checkpoint + vacuum now
 codex-disk-cleanup               # preview junk to delete (dry-run)
 codex-disk-cleanup --apply       # actually delete the junk
+
+# ⚠️  ADVANCED — actually STOPS the writes by modifying Codex's own DB (backs up first; reversible):
+codex-disk-block                 # preview (dry-run) — shows what it would do, changes nothing
+codex-disk-block --apply         # install the trigger that halts Codex's log writes
+codex-disk-unblock               # remove the trigger; Codex resumes logging
 ```
 
 A typical "is it still writing a lot?" check is just `codex-disk-check`. Run `--measure` when you want hard numbers.

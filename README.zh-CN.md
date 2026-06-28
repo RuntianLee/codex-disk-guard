@@ -74,6 +74,11 @@ codex-disk-check --measure 60    # 精确测 60 秒活跃写速(需 sudo),这段
 codex-disk-maintain              # 立即清旧日志 + checkpoint + vacuum
 codex-disk-cleanup               # 预览可删的垃圾(dry-run)
 codex-disk-cleanup --apply       # 真正删除垃圾
+
+# ⚠️  进阶 —— 真正“止血”:会改动 Codex 自己的数据库(先备份、可还原)
+codex-disk-block                 # 预览(dry-run)——只显示将做什么,不改动
+codex-disk-block --apply         # 装上触发器,止住 Codex 的日志写入
+codex-disk-unblock               # 移除触发器,Codex 恢复写日志
 ```
 
 平时想知道"是不是又在大量写盘",敲 `codex-disk-check` 即可;想要硬数据时再用 `--measure`。
