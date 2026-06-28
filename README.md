@@ -17,7 +17,8 @@
 | `codex-disk-check` | **Monitor.** Samples how many log rows Codex inserted since last run and reports a write rate. No `sudo`. Appends one line to a report log. |
 | `codex-disk-check --measure 60` | **Precisely measure** real bytes written to `~/.codex` over 60s using `fs_usage` (needs `sudo`). Prints a MB/day figure and an SSD-lifetime estimate. |
 | `codex-disk-maintain` | **Maintain.** Deletes log rows older than N days, truncates the WAL, and `VACUUM`s `logs_2.sqlite` so it stays small. Only touches that one database. |
-| `codex-disk-cleanup` | **Clean up** obvious junk (stale backups, caches, temp dirs). Dry-run by default; `--apply` to actually delete. Never touches `sessions/` or `memories/`. |
+| `codex-disk-cleanup` | **Preview cleanup (dry-run).** Lists the disposable junk it *would* remove (stale backups, caches, temp dirs) and **deletes nothing** — this is expected, not a failure. Never touches `sessions/` or `memories/`. |
+| `codex-disk-cleanup --apply` | **Actually deletes** that junk. Only this form removes files. |
 | `codex-disk-bench` | **Benchmark.** Stage-by-stage comparison of write rates — idle baseline, CLI active, and (if you install the desktop app) desktop idle / active — then a side-by-side table. |
 | `codex-disk-uninstall` | **Uninstall** everything this tool installed. |
 

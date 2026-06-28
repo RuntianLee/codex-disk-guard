@@ -17,7 +17,8 @@
 | `codex-disk-check` | **监测。** 采样 Codex 自上次以来插入了多少行日志,算出写入速率。无需 `sudo`,向报告文件追加一行。 |
 | `codex-disk-check --measure 60` | **精确测速。** 用 `fs_usage` 实测 60 秒内对 `~/.codex` 的写入字节(需 `sudo`),给出 MB/天当量和 SSD 寿命估算。 |
 | `codex-disk-maintain` | **维护。** 删除 N 天前的日志行、截断 WAL、`VACUUM` 压实 `logs_2.sqlite`,让它保持小体积。只动这一个数据库。 |
-| `codex-disk-cleanup` | **清理** 明确的垃圾(陈旧备份、缓存、临时目录)。默认只预览,加 `--apply` 才真删。绝不碰 `sessions/` 和 `memories/`。 |
+| `codex-disk-cleanup` | **预览清理(dry-run)。** 列出*将要*清理的垃圾(陈旧备份、缓存、临时目录),但**不删除任何文件**——这是正常的,不是命令没生效。绝不碰 `sessions/` 和 `memories/`。 |
+| `codex-disk-cleanup --apply` | **真正删除**上面那些垃圾。只有这个形式会删文件。 |
 | `codex-disk-bench` | **对比测试。** 分阶段测写盘速率——空闲基线、CLI 活跃,以及(若安装桌面版)桌面空闲/活跃——最后出一张对照表。 |
 | `codex-disk-uninstall` | **卸载** 本工具安装的一切。 |
 
