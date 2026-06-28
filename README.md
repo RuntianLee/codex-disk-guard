@@ -17,7 +17,7 @@
 | `codex-disk-bench` | **Benchmark.** Stage-by-stage comparison of write rates — idle baseline, CLI active, and (if you install the desktop app) desktop idle / active — then a side-by-side table. |
 | `codex-disk-uninstall` | **Uninstall** everything this tool installed. |
 
-`setup.sh` installs the first four as commands in `~/.local/bin` and registers two `launchd` jobs that run **maintain at 03:00** and **check at 03:05** every day.
+`setup.sh` installs these commands into `~/.local/bin` and registers two `launchd` jobs that run **maintain at 03:00** and **check at 03:05** every day.
 
 ## Why the writes happen (and what this can / can't do)
 

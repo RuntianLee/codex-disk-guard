@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cleanup.sh — one-time cleanup of clearly-disposable temp/cache/backup files.
+# codex-disk-cleanup — one-time cleanup of clearly-disposable temp/cache/backup files.
 # Dry-run by default; pass --apply to actually delete.
 # NEVER touches sessions/ or memories/.
 set -u
@@ -32,7 +32,7 @@ printf '\nReclaimable total: ~%s MB\n' "$((total/1024))"
 if [ "$APPLY" -eq 0 ]; then
   echo "This was a preview (dry-run); nothing was deleted. Re-run with --apply to delete."
   echo "  codex-disk-cleanup --apply   # when installed"
-  echo "  ./cleanup.sh --apply         # when run from the repo"
+  echo "  ./bin/codex-disk-cleanup --apply   # when run from the repo"
 else
   echo "Note: if you deleted computer-use and your config.toml has a notify = [...] line"
   echo "  pointing at it, remove that line too — otherwise Codex will try to spawn a"

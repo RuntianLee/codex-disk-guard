@@ -24,7 +24,7 @@ mkdir -p "$PREFIX/lib" "$AGENTS" "$STATE"
 install -m 0755 "$HERE/bin/codex-disk-maintain" "$PREFIX/codex-disk-maintain"
 install -m 0755 "$HERE/bin/codex-disk-check"    "$PREFIX/codex-disk-check"
 install -m 0755 "$HERE/bin/codex-disk-bench"    "$PREFIX/codex-disk-bench"
-install -m 0755 "$HERE/cleanup.sh"              "$PREFIX/codex-disk-cleanup"
+install -m 0755 "$HERE/bin/codex-disk-cleanup"  "$PREFIX/codex-disk-cleanup"
 install -m 0644 "$HERE/lib/common.sh"           "$PREFIX/lib/common.sh"
 install -m 0755 "$HERE/uninstall.sh"            "$PREFIX/codex-disk-uninstall"
 
