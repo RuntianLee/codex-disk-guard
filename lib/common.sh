@@ -65,4 +65,42 @@ cdt_detect_residual() {
   ls "$HOME/Library/LaunchAgents" /Library/LaunchAgents 2>/dev/null \
     | grep -iE 'codex|openai' | awk '{print "agent:", $0}'
 }
-cdt_measure() { echo "measure mode not yet implemented" >&2; return 3; }
+# 从 stdin 读 fs_usage 文本,累加 write/pwrite 操作中 B=0x.. 字节(仅限路径含 <target>)。
+# 注意: macOS /usr/bin/awk(BWK)无 strtonum,故用 awk 仅抽取 0x 值、由 bash 算术求和。
+cdt_sum_fsusage_bytes() { # <target_path_substring>
+  local target="$1" total=0 v
+  while IFS= read -r v; do
+    [ -n "$v" ] && total=$(( total + v ))   # v 形如 0x1000,bash 算术原生识别 0x
+  done < <(awk -v t="$target" '
+    /(^| )(write|pwrite)( |$)/ && index($0,t) {
+      for (i=1;i<=NF;i++) if ($i ~ /^B=0x/) { v=$i; sub(/^B=/,"",v); print v }
+    }')
+  printf '%d' "$total"
+}
+
+# 精确测速:用 fs_usage 抓 <secs> 秒,统计对 CODEX_HOME 的写字节,换算速率。
+# 需要 sudo;无 sudo 或非交互时给出清晰提示。
+cdt_measure() { # <secs> <want_json>
+  local secs="${1:-60}" want_json="${2:-0}"
+  local home; home="$(cdt_codex_home)"
+  local tmp; tmp="$(mktemp)"
+  echo "正在用 fs_usage 采样 ${secs}s(需 sudo)。请在此期间正常使用 codex 以测活跃写入…" >&2
+  # -w 宽格式; -f filesystem 只看文件系统事件
+  if ! sudo -v 2>/dev/null; then echo "需要 sudo 来运行 fs_usage" >&2; rm -f "$tmp"; return 3; fi
+  sudo fs_usage -w -f filesystem 2>/dev/null > "$tmp" &
+  local fpid=$!
+  sleep "$secs"
+  sudo kill "$fpid" 2>/dev/null; wait "$fpid" 2>/dev/null
+  local bytes; bytes="$(cdt_sum_fsusage_bytes "$home" < "$tmp")"
+  rm -f "$tmp"
+  local mbday; mbday="$(cdt_mb_per_day "$bytes" "$secs")"
+  local bpd; bpd="$(awk -v by="$bytes" -v s="$secs" 'BEGIN{printf "%d", by*(86400.0/s)}')"
+  local years; years="$(cdt_tbw_years "$bpd" "${CDT_TBW_TB:-150}")"
+  if [ "$want_json" -eq 1 ]; then
+    printf '{"window_s":%s,"write_bytes":%s,"mb_per_day_active":%s,"tbw_years_if_24x7":"%s"}\n' \
+      "$secs" "$bytes" "$mbday" "$years"
+  else
+    printf '活跃期写入: %s / %ss = %s MB/天当量(若全天持续)\n' "$(cdt_human_bytes "$bytes")" "$secs" "$mbday"
+    printf 'SSD 寿命(假设 %s TBW、该速率 24x7): 约 %s 年(仅供相对对比,实际只在活跃时写)\n' "${CDT_TBW_TB:-150}" "$years"
+  fi
+}
