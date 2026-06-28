@@ -8,6 +8,8 @@
 
 > Background: the Codex CLI continuously writes high-frequency `TRACE` logs into `~/.codex/logs_2.sqlite` (see [openai/codex#29532](https://github.com/openai/codex/issues/29532)). The `RUST_LOG` environment variable does **not** stop it, because the SQLite log sink has its own tracing layer. There is currently no config switch to disable that sink. This toolkit does not try to patch Codex; it gives you monitoring, low-frequency maintenance, and safe cleanup around it.
 
+> 📖 **New here?** Read **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** for the background, the approach, and a component-by-component explanation of *how* and *why* it works.
+
 ## What it does
 
 | Command | What it does |
@@ -141,7 +143,7 @@ Removes the commands, the two launchd jobs, and the report directory. It does no
 
 ## Design & how it works
 
-For the full story — the background, the reasoning behind the approach, and a component-by-component walkthrough (what each part does and *why*) — see **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** (bilingual EN / 中文).
+For the full story — the background, the reasoning behind the approach, and a component-by-component walkthrough (what each part does and *why*) — see **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)**.
 
 ## License
 

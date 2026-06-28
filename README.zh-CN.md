@@ -8,6 +8,8 @@
 
 > 背景:Codex CLI 会持续把高频 `TRACE` 日志写进 `~/.codex/logs_2.sqlite`(见 [openai/codex#29532](https://github.com/openai/codex/issues/29532))。`RUST_LOG` 环境变量**拦不住**它,因为这个 SQLite 日志 sink 有独立的 tracing 层,而且目前没有配置开关能关掉它。本工具不修改 Codex 本身,而是在它周围提供监测、低频维护和安全清理。
 
+> 📖 **想了解原理?** 先看 **[docs/HOW-IT-WORKS.zh-CN.md](docs/HOW-IT-WORKS.zh-CN.md)**:背景、方案、以及逐组件"是什么 + 为什么"的实现讲解。
+
 ## 它能做什么
 
 | 命令 | 作用 |
@@ -141,7 +143,7 @@ codex-disk-uninstall
 
 ## 设计与实现
 
-完整的来龙去脉——背景、方案取舍的原因、以及逐组件的实现讲解(每部分是什么、*为什么*这样做)——见 **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)**(中英双语)。
+完整的来龙去脉——背景、方案取舍的原因、以及逐组件的实现讲解(每部分是什么、*为什么*这样做)——见 **[docs/HOW-IT-WORKS.zh-CN.md](docs/HOW-IT-WORKS.zh-CN.md)**。
 
 ## 许可证
 
