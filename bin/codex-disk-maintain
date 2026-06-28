@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# codex-disk-maintain — 截断 WAL、清理超期日志行、压实 logs_2.sqlite。
+# 只动 logs_2.sqlite,绝不碰 sessions/ 与 memories/。库被占用/锁定时安全跳过。
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# 安装后 lib 与 bin 同级目录结构:优先仓库相对路径,回退安装路径。
+if [ -f "$HERE/../lib/common.sh" ]; then source "$HERE/../lib/common.sh";
+elif [ -f "$HERE/lib/common.sh" ]; then source "$HERE/lib/common.sh";
+else echo "common.sh not found" >&2; exit 1; fi
+
+db="$(cdt_logs_db)"
+retention="${CDT_RETENTION_DAYS:-3}"
+log() { printf '[maintain %s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+
+[ -f "$db" ] || { log "no logs db at $db, nothing to do"; exit 0; }
+
+# 锁检测:busy_timeout 短,撞锁即放弃本轮(不破坏数据)
+cutoff="$(( $(date +%s) - retention*86400 ))"
+out="$("$CDT_SQLITE" "$db" 2>&1 <<SQL
+PRAGMA busy_timeout=2000;
+DELETE FROM logs WHERE ts < $cutoff;
+PRAGMA wal_checkpoint(TRUNCATE);
+VACUUM;
+SQL
+)"
+rc=$?
+if [ $rc -ne 0 ]; then
+  log "skipped (db busy/locked or error): ${out}"
+  exit 0   # 安全跳过,不视为失败
+fi
+log "ok: pruned rows older than ${retention}d, checkpointed + vacuumed; size now $(cdt_human_bytes "$(cdt_file_size "$db")")"
+exit 0
