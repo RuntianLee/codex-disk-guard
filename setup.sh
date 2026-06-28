@@ -5,7 +5,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 # 0. 预检:仅支持 macOS,且依赖 sqlite3(macOS 自带 /usr/bin/sqlite3)
 if [ "$(uname)" != "Darwin" ]; then
-  echo "错误: codex-disk-tools 仅支持 macOS(依赖 launchd / fs_usage)。" >&2
+  echo "错误: codex-disk-guard 仅支持 macOS(依赖 launchd / fs_usage)。" >&2
   exit 1
 fi
 if ! command -v sqlite3 >/dev/null 2>&1 && [ ! -x /usr/bin/sqlite3 ]; then
