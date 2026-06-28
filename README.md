@@ -119,7 +119,7 @@ Tests are plain bash with a tiny assertion helper — no `bats` or other tooling
 
 ### License
 
-Choose a license for your fork (MIT is a good default for small tools) and add a `LICENSE` file.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
@@ -232,4 +232,4 @@ codex-disk-uninstall
 
 ### 许可证
 
-为你的 fork 选择一个许可证(小工具用 MIT 即可),并添加 `LICENSE` 文件。
+MIT —— 见 [LICENSE](LICENSE)。
