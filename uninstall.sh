@@ -16,6 +16,6 @@ rm -f "$PREFIX/codex-disk-maintain" "$PREFIX/codex-disk-check" "$PREFIX/codex-di
 rmdir "$PREFIX/lib" 2>/dev/null || true
 [ -n "$STATE" ] && rm -rf "$STATE"
 echo "已卸载脚本、定时与报告目录。"
-echo "注意: config.toml / RUST_LOG / computer-use 等缓解类改动未还原(见 spec §6.2)。"
+echo "注意: 你自己对 Codex config.toml / RUST_LOG / computer-use 做的改动未被还原,需手动处理。"
 # 最后自删
 rm -f "$PREFIX/codex-disk-uninstall"
