@@ -1,0 +1,3 @@
+tests/.tmp/
+*.bak
+.DS_Store
