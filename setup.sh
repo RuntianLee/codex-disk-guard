@@ -22,14 +22,14 @@ mkdir -p "$PREFIX/lib" "$AGENTS" "$STATE"
 install -m 0755 "$HERE/bin/codex-disk-maintain" "$PREFIX/codex-disk-maintain"
 install -m 0755 "$HERE/bin/codex-disk-check"    "$PREFIX/codex-disk-check"
 install -m 0755 "$HERE/bin/codex-disk-bench"    "$PREFIX/codex-disk-bench"
-install -m 0755 "$HERE/cleanup-once.sh"         "$PREFIX/codex-disk-cleanup"
+install -m 0755 "$HERE/cleanup.sh"              "$PREFIX/codex-disk-cleanup"
 install -m 0644 "$HERE/lib/common.sh"           "$PREFIX/lib/common.sh"
 install -m 0755 "$HERE/uninstall.sh"            "$PREFIX/codex-disk-uninstall"
 
 # 2. 渲染 plist(替换 __PREFIX__ / __STATE__)
 render() { sed -e "s#__PREFIX__#$PREFIX#g" -e "s#__STATE__#$STATE#g" "$1" > "$2"; }
-render "$HERE/launchd/com.user.codex-disk-maintain.plist.template" "$AGENTS/com.user.codex-disk-maintain.plist"
-render "$HERE/launchd/com.user.codex-disk-check.plist.template"    "$AGENTS/com.user.codex-disk-check.plist"
+render "$HERE/launchd/maintain.plist.template" "$AGENTS/com.user.codex-disk-maintain.plist"
+render "$HERE/launchd/check.plist.template"    "$AGENTS/com.user.codex-disk-check.plist"
 
 # 3. 加载定时(测试可用 CDT_NO_LAUNCHCTL=1 跳过)
 if [ "${CDT_NO_LAUNCHCTL:-0}" != "1" ]; then

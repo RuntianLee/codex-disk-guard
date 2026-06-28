@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cleanup-once.sh — 一次性清理明确的临时/缓存/备份。默认 dry-run,--apply 才执行。
+# cleanup.sh — 一次性清理明确的临时/缓存/备份。默认 dry-run,--apply 才执行。
 # 绝不触碰 sessions/ 与 memories/。
 set -u
 HOME_C="${CODEX_HOME:-$HOME/.codex}"
@@ -31,7 +31,7 @@ printf '\n合计可回收: ~%s MB\n' "$((total/1024))"
 if [ "$APPLY" -eq 0 ]; then
   echo "这是预览(dry-run),未删除任何文件。确认无误后加 --apply 执行。"
   echo "  codex-disk-cleanup --apply   # 已安装时"
-  echo "  ./cleanup-once.sh --apply    # 在仓库内直接运行时"
+  echo "  ./cleanup.sh --apply         # 在仓库内直接运行时"
 else
   echo "⚠ 若删除了 computer-use,且你的 config.toml 里有指向它的 notify = [...] 行,"
   echo "  请一并移除那行,否则 Codex 每轮结束都会去调一个不存在的程序而报错。"
