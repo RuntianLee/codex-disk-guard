@@ -14,7 +14,7 @@ fi
 rm -f "$AGENTS/com.user.codex-disk-maintain.plist" "$AGENTS/com.user.codex-disk-check.plist"
 rm -f "$PREFIX/codex-disk-maintain" "$PREFIX/codex-disk-check" "$PREFIX/lib/common.sh"
 rmdir "$PREFIX/lib" 2>/dev/null || true
-rm -rf "$STATE"
+[ -n "$STATE" ] && rm -rf "$STATE"
 echo "已卸载脚本、定时与报告目录。"
 echo "注意: config.toml / RUST_LOG / computer-use 等缓解类改动未还原(见 spec §6.2)。"
 # 最后自删

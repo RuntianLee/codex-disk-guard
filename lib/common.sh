@@ -90,7 +90,8 @@ cdt_measure() { # <secs> <want_json>
   sudo fs_usage -w -f filesystem 2>/dev/null > "$tmp" &
   local fpid=$!
   sleep "$secs"
-  sudo kill "$fpid" 2>/dev/null; wait "$fpid" 2>/dev/null
+  # 先杀 sudo 的子进程(真正的 fs_usage),再杀 sudo 包装进程,确保 root 采样进程不残留
+  sudo pkill -P "$fpid" 2>/dev/null; sudo kill "$fpid" 2>/dev/null; wait "$fpid" 2>/dev/null
   local bytes; bytes="$(cdt_sum_fsusage_bytes "$home" < "$tmp")"
   rm -f "$tmp"
   local mbday; mbday="$(cdt_mb_per_day "$bytes" "$secs")"
