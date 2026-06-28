@@ -1,6 +1,6 @@
 # lib/common.sh — 共享纯函数与指标采集(被 maintain/check 复用)
 # 不要 set -e:作为库被 source,失败处理交由各函数返回值。
-CDT_SQLITE="${CDT_SQLITE:-/usr/bin/sqlite3}"
+CDT_SQLITE="${CDT_SQLITE:-$(command -v sqlite3 2>/dev/null || echo /usr/bin/sqlite3)}"
 
 cdt_codex_home() { printf '%s' "${CODEX_HOME:-$HOME/.codex}"; }
 cdt_state_dir()  { printf '%s' "${CDT_STATE_DIR:-$HOME/.local/state/codex-disk}"; }

@@ -29,7 +29,10 @@ for t in "${targets[@]}"; do
 done
 printf '\n合计可回收: ~%s MB\n' "$((total/1024))"
 if [ "$APPLY" -eq 0 ]; then
-  echo "这是预览。确认无误后执行: bash cleanup-once.sh --apply"
+  echo "这是预览(dry-run),未删除任何文件。确认无误后加 --apply 执行。"
+  echo "  codex-disk-cleanup --apply   # 已安装时"
+  echo "  ./cleanup-once.sh --apply    # 在仓库内直接运行时"
 else
-  echo "⚠ 若已删除 computer-use,请接着执行 Task 8 移除 config.toml 的 notify 行,避免每轮 turn-ended 报错。"
+  echo "⚠ 若删除了 computer-use,且你的 config.toml 里有指向它的 notify = [...] 行,"
+  echo "  请一并移除那行,否则 Codex 每轮结束都会去调一个不存在的程序而报错。"
 fi
