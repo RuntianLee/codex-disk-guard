@@ -4,6 +4,8 @@
 
 **Tame the OpenAI Codex CLI's constant disk writing on macOS — monitor it, keep its log database from growing, and clean up junk, without ever touching your sessions or memories.**
 
+> ⚠️ **Disclaimer.** This project was built entirely by an AI agent. It was tested and ran without anomalies on the author's machine (macOS, Apple Silicon; OpenAI Codex CLI **`0.142.2`**), but **no guarantee is made about its safety on other systems or with other data.** Please read the scripts before running them and use at your own risk — start with the dry-run / monitoring commands (`codex-disk-check`, `codex-disk-cleanup` without `--apply`).
+
 > Background: the Codex CLI continuously writes high-frequency `TRACE` logs into `~/.codex/logs_2.sqlite` (see [openai/codex#29532](https://github.com/openai/codex/issues/29532)). The `RUST_LOG` environment variable does **not** stop it, because the SQLite log sink has its own tracing layer. There is currently no config switch to disable that sink. This toolkit does not try to patch Codex; it gives you monitoring, low-frequency maintenance, and safe cleanup around it.
 
 ## What it does
@@ -21,7 +23,7 @@
 
 ## Why the writes happen (and what this can / can't do)
 
-- The hot file is `~/.codex/logs_2.sqlite`. While you actively use Codex it receives ~0.5 MB/min of `TRACE` log inserts.
+- The hot file is `~/.codex/logs_2.sqlite`. Developers in [issue #29532](https://github.com/openai/codex/issues/29532) reported it growing to ~288 MB (with a ~13 MB WAL), with the insert counter (`max(id)`) advancing **~1,600+ rows per minute** of active use (≈470 KB of `TRACE log` content in a single 60-second window), and `RUST_LOG` not stopping it. Your own rate depends on your Codex log settings — those are reporters' real measurements, not a number this tool measured for you.
 - This **cannot be turned off** by configuration today — so this tool does not claim to eliminate writes during active use. Instead it (a) keeps that database from growing without bound, (b) lets you watch the write rate over time, and (c) removes one-off junk.
 - For perspective: even at 1–2 GB/day (~0.5 TB/year), a modern SSD rated at hundreds of TBW lasts centuries. The point of this tool is awareness and hygiene, not panic.
 
