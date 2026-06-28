@@ -65,3 +65,4 @@ cdt_detect_residual() {
   ls "$HOME/Library/LaunchAgents" /Library/LaunchAgents 2>/dev/null \
     | grep -iE 'codex|openai' | awk '{print "agent:", $0}'
 }
+cdt_measure() { echo "measure mode not yet implemented" >&2; return 3; }
