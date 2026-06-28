@@ -24,13 +24,15 @@
 
 `setup.sh` installs these commands into `~/.local/bin` and registers two `launchd` jobs that run **maintain at 03:00** and **check at 03:05** every day.
 
+> **Note:** this tool *monitors, maintains, and cleans* — it does **not** lower the write *rate* (there is no switch to flip). For partial ways to cut the volume, see the **[Reducing the writes](#reducing-the-writes-partial-outside-this-tool)** section below.
+
 ## Why the writes happen (and what this can / can't do)
 
 - The hot file is `~/.codex/logs_2.sqlite`. Developers in [issue #29532](https://github.com/openai/codex/issues/29532) reported it growing to ~288 MB (with a ~13 MB WAL), with the insert counter (`max(id)`) advancing **~1,600+ rows per minute** of active use (≈470 KB of `TRACE log` content in a single 60-second window), and `RUST_LOG` not stopping it. Your own rate depends on your Codex log settings — those are reporters' real measurements, not a number this tool measured for you.
 - This **cannot be turned off** by configuration today — so this tool does not claim to eliminate writes during active use. Instead it (a) keeps that database from growing without bound, (b) lets you watch the write rate over time, and (c) removes one-off junk.
 - For perspective: even at 1–2 GB/day (~0.5 TB/year), a modern SSD rated at hundreds of TBW lasts centuries. The point of this tool is awareness and hygiene, not panic.
 
-## Reducing the writes (partial — outside this tool)
+## Reducing the writes (partial, outside this tool)
 
 This tool has **no feature that lowers the write *rate*** — there is no switch to disable the SQLite log sink, so nothing can fully stop it (see above). `codex-disk-maintain` keeps the file *size* bounded but does not change how often Codex writes. The only levers that actually cut volume are configuration/behaviour, not code:
 
