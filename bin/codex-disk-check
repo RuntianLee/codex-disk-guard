@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# codex-disk-check — 监测 codex CLI 写盘是否复发。
-#   默认: 被动采样(无需 sudo),写报告并按阈值判定 PASS/WARN。
-#   --json: 机器可读单行输出。
-#   --measure [secs]: 精确测速模式(sudo fs_usage),见下个 task。
+# codex-disk-check — monitor whether the Codex CLI's heavy disk writing has returned.
+#   default:          passive sampling (no sudo); appends a report line and flags PASS/WARN.
+#   --json:           machine-readable single-line output.
+#   --measure [secs]: precise measurement mode (sudo fs_usage).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 if [ -f "$HERE/../lib/common.sh" ]; then source "$HERE/../lib/common.sh";
@@ -31,14 +31,14 @@ if [ "$mode" = "measure" ]; then cdt_measure "$measure_secs" "$want_json"; exit 
 counter="$(cdt_insert_counter)"
 residual="$(cdt_detect_residual)"
 
-# 读取上次采样
+# Read the previous sample
 prev_counter=""; prev_ts=""
 if [ -f "$last" ]; then
   prev_counter="$(awk -F= '/^counter=/{print $2}' "$last")"
   prev_ts="$(awk -F= '/^ts=/{print $2}' "$last")"
 fi
 
-# 写新采样
+# Write the new sample
 printf 'ts=%s\ncounter=%s\n' "$now" "$counter" > "$last"
 
 status="PASS"; line=""
@@ -48,7 +48,7 @@ else
   inserted=$(( counter - prev_counter )); [ "$inserted" -lt 0 ] && inserted=0
   elapsed=$(( now - prev_ts )); [ "$elapsed" -le 0 ] && elapsed=1
   rpm="$(awk -v i="$inserted" -v e="$elapsed" 'BEGIN{printf "%.2f", i*60.0/e}')"
-  # 用平均每行 estimated_bytes≈150 估算字节速率(粗略,仅用于阈值与趋势)
+  # Rough byte-rate estimate using ~150 estimated_bytes per row (for thresholds/trend only)
   bytes=$(( inserted * 150 ))
   mbday="$(cdt_mb_per_day "$bytes" "$elapsed")"
   cdt_over "$mbday" "$rate_warn" && status="WARN"
@@ -66,6 +66,6 @@ if [ "$want_json" -eq 1 ]; then
     "${status}" "${ins}" "${counter}" "${wal}"
 else
   printf '%s\n' "$line"
-  [ -n "$residual" ] && { echo "  ⚠ 检测到残留:"; printf '%s\n' "$residual" | sed 's/^/    /'; }
+  [ -n "$residual" ] && { echo "  ⚠ residual writer detected:"; printf '%s\n' "$residual" | sed 's/^/    /'; }
 fi
 [ "$status" = "WARN" ] && exit 1 || exit 0

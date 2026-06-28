@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# cleanup.sh — 一次性清理明确的临时/缓存/备份。默认 dry-run,--apply 才执行。
-# 绝不触碰 sessions/ 与 memories/。
+# cleanup.sh — one-time cleanup of clearly-disposable temp/cache/backup files.
+# Dry-run by default; pass --apply to actually delete.
+# NEVER touches sessions/ or memories/.
 set -u
 HOME_C="${CODEX_HOME:-$HOME/.codex}"
 APPLY=0; [ "${1:-}" = "--apply" ] && APPLY=1
@@ -14,25 +15,26 @@ targets=(
   "$HOME_C/computer-use"
 )
 
-echo "== codex 一次性清理 (apply=$APPLY) =="
-echo "保护(永不删): $HOME_C/sessions, $HOME_C/memories"
+echo "== Codex one-time cleanup (apply=$APPLY) =="
+echo "Protected (never deleted): $HOME_C/sessions, $HOME_C/memories"
 echo
 total=0
 for t in "${targets[@]}"; do
   if [ -e "$t" ]; then
     sz=$(du -sk "$t" 2>/dev/null | awk '{print $1}'); total=$((total+sz))
     printf '  [%s] %s\n' "$(du -sh "$t" 2>/dev/null | awk '{print $1}')" "$t"
-    if [ "$APPLY" -eq 1 ]; then rm -rf "$t" && echo "      -> 已删除"; fi
+    if [ "$APPLY" -eq 1 ]; then rm -rf "$t" && echo "      -> deleted"; fi
   else
-    printf '  [skip 不存在] %s\n' "$t"
+    printf '  [skip, not present] %s\n' "$t"
   fi
 done
-printf '\n合计可回收: ~%s MB\n' "$((total/1024))"
+printf '\nReclaimable total: ~%s MB\n' "$((total/1024))"
 if [ "$APPLY" -eq 0 ]; then
-  echo "这是预览(dry-run),未删除任何文件。确认无误后加 --apply 执行。"
-  echo "  codex-disk-cleanup --apply   # 已安装时"
-  echo "  ./cleanup.sh --apply         # 在仓库内直接运行时"
+  echo "This was a preview (dry-run); nothing was deleted. Re-run with --apply to delete."
+  echo "  codex-disk-cleanup --apply   # when installed"
+  echo "  ./cleanup.sh --apply         # when run from the repo"
 else
-  echo "⚠ 若删除了 computer-use,且你的 config.toml 里有指向它的 notify = [...] 行,"
-  echo "  请一并移除那行,否则 Codex 每轮结束都会去调一个不存在的程序而报错。"
+  echo "Note: if you deleted computer-use and your config.toml has a notify = [...] line"
+  echo "  pointing at it, remove that line too — otherwise Codex will try to spawn a"
+  echo "  missing program at the end of every turn and error out."
 fi

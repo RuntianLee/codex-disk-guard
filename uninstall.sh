@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# uninstall.sh — 精确卸载:停定时、删脚本/lib/plist/报告目录。仅删自己装的东西。
+# uninstall.sh — precise uninstall: stop the timers and remove the scripts/lib/plists/report dir.
+# Removes only what setup.sh installed.
 set -u
 PREFIX="${CDT_PREFIX:-$HOME/.local/bin}"
 AGENTS="${CDT_AGENTS_DIR:-$HOME/Library/LaunchAgents}"
@@ -15,7 +16,7 @@ rm -f "$AGENTS/com.user.codex-disk-maintain.plist" "$AGENTS/com.user.codex-disk-
 rm -f "$PREFIX/codex-disk-maintain" "$PREFIX/codex-disk-check" "$PREFIX/codex-disk-bench" "$PREFIX/codex-disk-cleanup" "$PREFIX/lib/common.sh"
 rmdir "$PREFIX/lib" 2>/dev/null || true
 [ -n "$STATE" ] && rm -rf "$STATE"
-echo "已卸载脚本、定时与报告目录。"
-echo "注意: 你自己对 Codex config.toml / RUST_LOG / computer-use 做的改动未被还原,需手动处理。"
-# 最后自删
+echo "Removed the scripts, timers, and report directory."
+echo "Note: any changes you made yourself to Codex config.toml / RUST_LOG / computer-use are NOT reverted; handle those manually."
+# Finally remove this uninstaller itself.
 rm -f "$PREFIX/codex-disk-uninstall"
