@@ -3,7 +3,10 @@
 # Dry-run by default; pass --apply to actually delete.
 # NEVER touches sessions/ or memories/.
 set -u
-HOME_C="${CODEX_HOME:-$HOME/.codex}"
+HOME_C="${CODEX_HOME:-${HOME:-}/.codex}"
+# Refuse to run with a nonsensical home (e.g. HOME unset -> "/.codex"), so rm targets
+# can never resolve to absolute system paths.
+case "$HOME_C" in ""|/.codex) echo "error: HOME/CODEX_HOME is not set sensibly; refusing to run." >&2; exit 1 ;; esac
 APPLY=0; [ "${1:-}" = "--apply" ] && APPLY=1
 
 targets=(

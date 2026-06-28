@@ -13,6 +13,12 @@ db="$(cdt_logs_db)"
 retention="${CDT_RETENTION_DAYS:-3}"
 log() { printf '[maintain %s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
+# Validate retention before arithmetic: with 'set -u' a non-numeric value would be
+# treated as an unset variable name inside $(( )) and abort the whole run silently.
+case "$retention" in
+  ''|*[!0-9]*) log "invalid CDT_RETENTION_DAYS='$retention', falling back to 3"; retention=3 ;;
+esac
+
 [ -f "$db" ] || { log "no logs db at $db, nothing to do"; exit 0; }
 
 # Short busy_timeout: if we hit a lock, give up this run without corrupting data.

@@ -63,6 +63,8 @@ cdt_tbw_years() { # <bytes_per_day> <tbw_tb> -> years, 2 decimals
 
 # Detect a leftover Codex daemon / autostart agent that would keep writing in the
 # background. Echo one line per finding; produce no output when nothing is found.
+# (SkyComputerUse is the Codex desktop app's "computer use" helper process, one of
+# the resident writers the desktop app can leave running.)
 cdt_detect_residual() {
   ps aux | grep -iE 'codex .*(app-server|remote-control)|SkyComputerUse' | grep -v grep \
     | awk '{print "proc:", $2, $11, $12, $13}'

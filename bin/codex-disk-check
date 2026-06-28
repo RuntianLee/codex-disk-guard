@@ -61,9 +61,9 @@ fi
 printf '%s\n' "$line" >> "$report"
 
 if [ "$want_json" -eq 1 ]; then
-  ins="${inserted:-0}"
-  printf '{"status":"%s","inserted":%s,"counter":%s,"wal_bytes":%s}\n' \
-    "${status}" "${ins}" "${counter}" "${wal}"
+  ins="${inserted:-0}"; rpm_out="${rpm:-0}"
+  printf '{"status":"%s","inserted":%s,"rows_per_min":%s,"counter":%s,"wal_bytes":%s}\n' \
+    "${status}" "${ins}" "${rpm_out}" "${counter}" "${wal}"
 else
   printf '%s\n' "$line"
   [ -n "$residual" ] && { echo "  ⚠ residual writer detected:"; printf '%s\n' "$residual" | sed 's/^/    /'; }
