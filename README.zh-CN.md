@@ -16,6 +16,7 @@
 | `codex-disk-check --measure 60` | **精确测速。** 用 `fs_usage` 实测 60 秒内对 `~/.codex` 的写入字节(需 `sudo`),给出 MB/天当量和 SSD 寿命估算。 |
 | `codex-disk-maintain` | **维护。** 删除 N 天前的日志行、截断 WAL、`VACUUM` 压实 `logs_2.sqlite`,让它保持小体积。只动这一个数据库。 |
 | `codex-disk-cleanup` | **清理** 明确的垃圾(陈旧备份、缓存、临时目录)。默认只预览,加 `--apply` 才真删。绝不碰 `sessions/` 和 `memories/`。 |
+| `codex-disk-bench` | **对比测试。** 分阶段测写盘速率——空闲基线、CLI 活跃,以及(若安装桌面版)桌面空闲/活跃——最后出一张对照表。 |
 | `codex-disk-uninstall` | **卸载** 本工具安装的一切。 |
 
 `setup.sh` 会把前四个命令装进 `~/.local/bin`,并注册两个 `launchd` 定时任务:每天 **03:00 维护**、**03:05 检查**。
@@ -59,6 +60,20 @@ codex-disk-cleanup --apply       # 真正删除垃圾
 ```
 
 平时想知道"是不是又在大量写盘",敲 `codex-disk-check` 即可;想要硬数据时再用 `--measure`。
+
+### 对比测试:CLI vs 桌面版
+
+CLI 只在你主动运行时写盘;而**桌面版**还会常驻一个后台 daemon,**空闲时也 24/7 持续写**——那才是磨损的真正来源。`codex-disk-bench` 分阶段把两者都测一遍,方便对比:
+
+```bash
+codex-disk-bench guide            # 依次:① 空闲基线 → ② CLI 活跃 → ③ 维护
+# ……然后安装并启动桌面版,再:
+codex-disk-bench desktop-idle 120 # ④ 桌面版开着、完全不操作(测 daemon 的空闲写入)
+codex-disk-bench desktop-active   # ⑤ 主动使用桌面版
+codex-disk-bench report           # 出对照表(无需 sudo)
+```
+
+每个阶段用的测量命令完全一样,只是场景不同。④/⑤ 只有在装了桌面版(及其 daemon)后才有意义——CLI 本身没有"空闲写入"这个状态。
 
 ## 工作原理
 

@@ -16,6 +16,7 @@
 | `codex-disk-check --measure 60` | **Precisely measure** real bytes written to `~/.codex` over 60s using `fs_usage` (needs `sudo`). Prints a MB/day figure and an SSD-lifetime estimate. |
 | `codex-disk-maintain` | **Maintain.** Deletes log rows older than N days, truncates the WAL, and `VACUUM`s `logs_2.sqlite` so it stays small. Only touches that one database. |
 | `codex-disk-cleanup` | **Clean up** obvious junk (stale backups, caches, temp dirs). Dry-run by default; `--apply` to actually delete. Never touches `sessions/` or `memories/`. |
+| `codex-disk-bench` | **Benchmark.** Stage-by-stage comparison of write rates — idle baseline, CLI active, and (if you install the desktop app) desktop idle / active — then a side-by-side table. |
 | `codex-disk-uninstall` | **Uninstall** everything this tool installed. |
 
 `setup.sh` installs the first four as commands in `~/.local/bin` and registers two `launchd` jobs that run **maintain at 03:00** and **check at 03:05** every day.
@@ -59,6 +60,20 @@ codex-disk-cleanup --apply       # actually delete the junk
 ```
 
 A typical "is it still writing a lot?" check is just `codex-disk-check`. Run `--measure` when you want hard numbers.
+
+### Benchmark: CLI vs desktop app
+
+The CLI only writes while you actively run it. The **desktop app** additionally runs a background daemon that writes 24/7 even when idle — that idle churn is the real wear concern. `codex-disk-bench` measures both, stage by stage, so you can compare:
+
+```bash
+codex-disk-bench guide            # runs: ① idle baseline → ② CLI active → ③ maintain
+# ...then install & launch the desktop app, and:
+codex-disk-bench desktop-idle 120 # ④ app running, do NOT touch it (measures the daemon's idle writes)
+codex-disk-bench desktop-active   # ⑤ actively use the app
+codex-disk-bench report           # side-by-side table (no sudo)
+```
+
+The measurement command is identical for every stage; only the scenario differs. Stages ④/⑤ are only meaningful once the desktop app (and its daemon) is installed — the CLI has no idle-writing state.
 
 ## How it works
 

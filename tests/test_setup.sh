@@ -8,6 +8,8 @@ env CDT_PREFIX="$prefix" CDT_AGENTS_DIR="$agents" CDT_STATE_DIR="$state" \
 
 assert_true "maintain installed"   test -x "$prefix/codex-disk-maintain"
 assert_true "check installed"       test -x "$prefix/codex-disk-check"
+assert_true "bench installed"       test -x "$prefix/codex-disk-bench"
+assert_true "cleanup installed"     test -x "$prefix/codex-disk-cleanup"
 assert_true "common.sh installed"   test -f "$prefix/lib/common.sh"
 assert_true "uninstall installed"   test -x "$prefix/codex-disk-uninstall"
 assert_true "maintain plist exists" test -f "$agents/com.user.codex-disk-maintain.plist"
@@ -22,4 +24,6 @@ assert_true "installed check runs" bash -c "CODEX_HOME=$(mktemp -d) CDT_STATE_DI
 env CDT_PREFIX="$prefix" CDT_AGENTS_DIR="$agents" CDT_STATE_DIR="$state" \
     CDT_NO_LAUNCHCTL=1 bash "$prefix/codex-disk-uninstall" >/dev/null 2>&1
 assert_false "maintain removed" test -e "$prefix/codex-disk-maintain"
+assert_false "bench removed" test -e "$prefix/codex-disk-bench"
+assert_false "cleanup removed" test -e "$prefix/codex-disk-cleanup"
 assert_false "check plist removed" test -e "$agents/com.user.codex-disk-check.plist"

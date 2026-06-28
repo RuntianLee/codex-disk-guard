@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# codex-disk-bench — 分阶段对照测试 codex 写盘:空闲基线 / CLI 活跃 / 桌面空闲 / 桌面活跃。
+# 每个阶段把结果存到 $CDT_STATE_DIR/bench/,可跨会话、跨"安装桌面版"这个断点分次运行。
+# 测量复用 codex-disk-check 的 --measure(sudo fs_usage);report 只读文件,无需 sudo。
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$HERE/../lib/common.sh" ]; then source "$HERE/../lib/common.sh";
+elif [ -f "$HERE/lib/common.sh" ]; then source "$HERE/lib/common.sh";
+else echo "common.sh not found" >&2; exit 1; fi
+
+BENCH_DIR="$(cdt_state_dir)/bench"
+mkdir -p "$BENCH_DIR"
+
+# 定位同级 maintain(安装布局在同目录;仓库布局在 ../bin)
+maintain_bin() {
+  if [ -x "$HERE/codex-disk-maintain" ]; then echo "$HERE/codex-disk-maintain";
+  elif [ -x "$HERE/../bin/codex-disk-maintain" ]; then echo "$HERE/../bin/codex-disk-maintain";
+  else echo ""; fi
+}
+
+usage() {
+  cat <<'EOF'
+codex-disk-bench — codex 写盘四态对照测试
+
+用法:
+  codex-disk-bench guide                # 引导式:自动跑 ①②③,并提示桌面版后续步骤
+  codex-disk-bench idle [秒=60]         # ① 空闲基线(无 codex 运行,什么都别做)
+  codex-disk-bench cli-active [秒=60]   # ② CLI 活跃(这段时间正常用 CLI)
+  codex-disk-bench maintain             # ③ 跑一次维护,压实共享日志库
+  codex-disk-bench desktop-idle [秒=120]# ④ 桌面空闲(装好桌面版后,完全不操作)
+  codex-disk-bench desktop-active [秒=60]# ⑤ 桌面活跃(这段时间正常用桌面版)
+  codex-disk-bench report               # 汇总四态对比表(无需 sudo)
+  codex-disk-bench reset                # 清空已保存的本轮测试结果
+
+说明:测量用 sudo fs_usage;每个阶段结果存到 $CDT_STATE_DIR/bench/。
+EOF
+}
+
+run_measure() { # <stage> <secs> <prompt>
+  local stage="$1" secs="$2" prompt="$3"
+  echo
+  echo "=== 阶段 ${stage}  (窗口 ${secs}s) ==="
+  echo "$prompt"
+  printf '准备好后按 Enter 开始(需要 sudo 来运行 fs_usage)... '
+  read -r _
+  local residual; residual="$(cdt_detect_residual)"
+  local json; json="$(cdt_measure "$secs" 1)"
+  if [ -z "$json" ]; then
+    echo "✗ 测量失败(可能未取得 sudo)。未保存。" >&2
+    return 1
+  fi
+  printf '%s\n' "$json" > "$BENCH_DIR/$stage.json"
+  if [ -n "$residual" ]; then echo YES; else echo NO; fi > "$BENCH_DIR/$stage.residual"
+  echo "已保存: $BENCH_DIR/$stage.json"
+  printf '%s\n' "$json"
+}
+
+json_num() { # <file> <key>  抽取数字(整数或小数)
+  sed -n "s/.*\"$2\":\\([0-9][0-9.]*\\).*/\\1/p" "$1"
+}
+
+report() {
+  printf '\n%-16s %-8s %-10s %-14s %-9s\n' "stage" "win(s)" "written" "MB/day(eq)" "residual"
+  printf -- '------------------------------------------------------------\n'
+  local stage f ws wb mb res
+  for stage in idle cli-active desktop-idle desktop-active; do
+    f="$BENCH_DIR/$stage.json"
+    if [ ! -f "$f" ]; then
+      printf '%-16s %s\n' "$stage" "(未测)"
+      continue
+    fi
+    ws="$(json_num "$f" window_s)"
+    wb="$(json_num "$f" write_bytes)"
+    mb="$(json_num "$f" mb_per_day_active)"
+    res="$(cat "$BENCH_DIR/$stage.residual" 2>/dev/null || echo '-')"
+    printf '%-16s %-8s %-10s %-14s %-9s\n' \
+      "$stage" "${ws:-?}" "$(cdt_human_bytes "${wb:-0}")" "${mb:-?}" "$res"
+  done
+  cat <<'EOF'
+
+解读:
+  - idle           应 ≈ 0:闲着本不该写盘。
+  - cli-active     CLI 主动使用时的写入。
+  - desktop-idle   桌面版开着、你不操作时的写入;明显 > idle 即"24/7 空闲 churn"(SSD 寿命真正威胁)。
+  - desktop-active 桌面版主动使用时的写入。
+  residual=YES 表示测量时后台有常驻写入者(桌面版 daemon 等)。
+EOF
+}
+
+cmd="${1:-help}"; [ $# -gt 0 ] && shift
+case "$cmd" in
+  idle)           run_measure idle "${1:-60}" "确保当前没有任何 codex 在运行,这段时间什么都别做。" ;;
+  cli-active)     run_measure cli-active "${1:-60}" "这段时间正常使用 codex CLI 做一次典型操作。" ;;
+  desktop-idle)   run_measure desktop-idle "${1:-120}" "桌面版已启动;这段时间完全不要操作它(测后台 daemon 的空闲写入)。" ;;
+  desktop-active) run_measure desktop-active "${1:-60}" "这段时间正常使用桌面版做一次典型操作。" ;;
+  maintain)
+    m="$(maintain_bin)"
+    if [ -n "$m" ]; then echo "=== 阶段 maintain ==="; "$m"; else echo "找不到 codex-disk-maintain" >&2; exit 1; fi ;;
+  report)         report ;;
+  reset)          rm -f "$BENCH_DIR"/*.json "$BENCH_DIR"/*.residual 2>/dev/null; echo "已清空 $BENCH_DIR" ;;
+  guide)
+    echo "将依次进行:① 空闲基线 → ② CLI 活跃 → ③ 维护。④⑤ 需要你装好桌面版后再单独运行。"
+    run_measure idle "${1:-60}" "确保当前没有任何 codex 在运行,这段时间什么都别做。" || exit 1
+    run_measure cli-active "60" "这段时间正常使用 codex CLI 做一次典型操作。" || exit 1
+    m="$(maintain_bin)"; [ -n "$m" ] && { echo; echo "=== 阶段 maintain ==="; "$m"; }
+    cat <<'EOF'
+
+①②③ 完成。接下来:
+  1) 安装并启动 Codex 桌面版
+  2) 桌面版开着、完全不操作,运行:  codex-disk-bench desktop-idle 120
+  3) 主动用桌面版一会儿,运行:      codex-disk-bench desktop-active 60
+  4) 出对比表:                      codex-disk-bench report
+EOF
+    ;;
+  help|--help|-h) usage ;;
+  *) echo "未知子命令: $cmd" >&2; usage; exit 2 ;;
+esac

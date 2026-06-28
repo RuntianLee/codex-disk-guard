@@ -12,7 +12,7 @@ if [ "${CDT_NO_LAUNCHCTL:-0}" != "1" ]; then
 fi
 
 rm -f "$AGENTS/com.user.codex-disk-maintain.plist" "$AGENTS/com.user.codex-disk-check.plist"
-rm -f "$PREFIX/codex-disk-maintain" "$PREFIX/codex-disk-check" "$PREFIX/codex-disk-cleanup" "$PREFIX/lib/common.sh"
+rm -f "$PREFIX/codex-disk-maintain" "$PREFIX/codex-disk-check" "$PREFIX/codex-disk-bench" "$PREFIX/codex-disk-cleanup" "$PREFIX/lib/common.sh"
 rmdir "$PREFIX/lib" 2>/dev/null || true
 [ -n "$STATE" ] && rm -rf "$STATE"
 echo "已卸载脚本、定时与报告目录。"
