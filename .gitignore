@@ -1,5 +1,4 @@
-# Kept local-only to keep the public repo minimal (design notes, tests, CI)
-docs/
+# Kept local-only to keep the public repo minimal (tests + CI)
 tests/
 .github/
 

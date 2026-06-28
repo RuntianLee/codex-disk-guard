@@ -139,6 +139,10 @@ codex-disk-uninstall
 
 Removes the commands, the two launchd jobs, and the report directory. It does not change any Codex config you may have edited yourself (that's yours to manage).
 
+## Design & how it works
+
+For the full story — the background, the reasoning behind the approach, and a component-by-component walkthrough (what each part does and *why*) — see **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** (bilingual EN / 中文).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

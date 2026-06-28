@@ -139,6 +139,10 @@ codex-disk-uninstall
 
 删除命令、两个 launchd 任务、报告目录。它不会改动你自己手动编辑过的任何 Codex 配置(那部分由你自行管理)。
 
+## 设计与实现
+
+完整的来龙去脉——背景、方案取舍的原因、以及逐组件的实现讲解(每部分是什么、*为什么*这样做)——见 **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)**(中英双语)。
+
 ## 许可证
 
 MIT —— 见 [LICENSE](LICENSE)。
