@@ -20,11 +20,13 @@
 | `codex-disk-cleanup` | **预览清理(dry-run)。** 列出*将要*清理的垃圾(陈旧备份、缓存、临时目录),但**不删除任何文件**——这是正常的,不是命令没生效。绝不碰 `sessions/` 和 `memories/`。 |
 | `codex-disk-cleanup --apply` | **真正删除**上面那些垃圾。只有这个形式会删文件。 |
 | `codex-disk-bench` | **对比测试。** 分阶段测写盘速率——空闲基线、CLI 活跃,以及(若安装桌面版)桌面空闲/活跃——最后出一张对照表。 |
+| `codex-disk-block` / `--apply` | **⚠️ 进阶、opt-in。** 装一个 SQLite 触发器,在数据库层**真正止住** Codex 的日志写入——唯一能停下 churn 的办法。**会改动 Codex 自己的数据库**;默认 dry-run,`--apply` 才执行,且先备份。 |
+| `codex-disk-unblock` | 移除该触发器,Codex 恢复正常写日志。 |
 | `codex-disk-uninstall` | **卸载** 本工具安装的一切。 |
 
 `setup.sh` 会把上述命令装进 `~/.local/bin`,并注册两个 `launchd` 定时任务:每天 **03:00 维护**、**03:05 检查**。
 
-> **注意:** 本工具是*监测、维护、清理*——它**不降低写入速率**(没有开关可拨)。想部分减少写入量,见下方 **减少写入** 一节。
+> **注意:** 默认情况下本工具是*监测、维护、清理*——不改变 Codex 写入的频率。有一个 **opt-in、进阶**命令(`codex-disk-block`)能在数据库层**真正止住**写入。见下方 **减少写入** 一节。
 
 ## 为什么会频繁写(以及本工具能/不能做什么)
 
@@ -32,14 +34,15 @@
 - 这个写入**目前无法用配置关闭**——所以本工具不声称能消除活跃使用时的写入。它做的是:(a) 让日志库不再无限膨胀;(b) 让你长期观察写入速率;(c) 清掉一次性垃圾。
 - 客观看:即使每天写 1–2 GB(约 0.5 TB/年),一块标称数百 TBW 的现代 SSD 也能用上百年。本工具的意义是"心里有数 + 保持整洁",而不是制造焦虑。
 
-## 减少写入(部分止血 —— 不在本工具内)
+## 减少写入
 
-本工具**没有降低写入*速率*的功能**——没有开关能关掉那个 SQLite 日志 sink,所以无法彻底止住(见上文)。`codex-disk-maintain` 只是把文件*体积*控制住,并不改变 Codex 写入的频率。真正能减少写入量的杠杆都是**配置/行为**,不是代码:
+默认情况下本工具只*观测和整理*——`codex-disk-maintain` 控制文件*体积*,但不改变 Codex 写入的频率。有**一个 opt-in 的办法能真正止住写入**,外加两个更轻的配置/行为杠杆:
 
-- **调高日志级别** —— 例如在 `~/.zshenv` 加 `export RUST_LOG=error`。这能砍掉那些*确实遵守*过滤器的日志(大部分 INFO/DEBUG 和部分 `codex_*` TRACE target),但**拦不住**高频的 `target=log` TRACE 行——那些照写不误。属于部分缓解,且效果因环境而异。
-- **别让桌面版 daemon 常驻** —— 7×24 的空闲 churn 来自桌面版 app-server。彻底退出桌面版就消除了这个来源(纯 CLI 本身没有空闲写入者)。
+- **`codex-disk-block` —— opt-in、进阶、真正止血。** 在 `logs` 表上装一个 SQLite `BEFORE INSERT … RAISE(IGNORE)` 触发器,让 Codex 的插入变成静默空操作,在**数据库层**停住 churn——这是唯一没有开关的那一层。因为它**会改动 Codex 自己的数据库**:默认 dry-run,加 `--apply` 才执行,且**先备份**,`codex-disk-unblock` 可还原。**注意事项:** 依赖回读日志的 Codex 功能(如 feedback 上报)可能失效;Codex 升级若重建日志库会静默丢掉该触发器;卸载本工具**不会**移除触发器(只会提示你)。用 `codex-disk-check --measure` 验证是否生效。
+- **调高日志级别** —— 在 `~/.zshenv` 加 `export RUST_LOG=error`。能砍掉遵守过滤器的那部分(大部分 INFO/DEBUG 和部分 `codex_*` TRACE target),但**拦不住**高频的 `target=log` 行。部分缓解,效果因环境而异。
+- **别让桌面版 daemon 常驻** —— 7×24 的空闲 churn 来自桌面版 app-server;彻底退出它就消除了这个来源(纯 CLI 本身没有空闲写入者)。
 
-**在*你自己*的机器上实测效果:** 改动前后各跑一次 `codex-disk-check --measure 60`(或 `codex-disk-bench`)对比——这正是本工具的用途。
+**在*你自己*的机器上实测效果:** 改动前后各跑一次 `codex-disk-check --measure 60`(或 `codex-disk-bench`)对比。
 
 ## 环境要求
 
@@ -132,6 +135,8 @@ codex-disk-bench report           # 出对照表(无需 sudo)
 | `codex-disk-maintain` | 修改 `~/.codex/logs_2.sqlite`(它要维护的目标,也是唯一改动的文件);不写其它任何文件 |
 | `codex-disk-bench` | 每个阶段写 `~/.local/state/codex-disk/bench/<阶段>.json`(及 `.residual` 标记) |
 | `codex-disk-cleanup --apply` | **删除** `~/.codex` 下的垃圾;不创建任何文件 |
+| `codex-disk-block --apply` | 先备份到 `~/.codex/logs_2.sqlite.block-backup-<时间戳>`,并在 `~/.codex/logs_2.sqlite` **内部**加一个触发器 |
+| `codex-disk-unblock` | 从 `~/.codex/logs_2.sqlite` 移除该触发器 |
 | 每日 `launchd` 定时任务 | 标准输出/错误 → `~/.local/state/codex-disk/maintain.out.log`、`maintain.err.log`、`check.out.log`、`check.err.log` |
 | `codex-disk-uninstall` | 移除以上全部 |
 

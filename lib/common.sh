@@ -45,6 +45,14 @@ cdt_logs_rowcount() {
 
 cdt_wal_size() { cdt_file_size "$(cdt_logs_db)-wal"; }
 
+# True (exit 0) if our insert-blocking trigger (installed by codex-disk-block) is present.
+cdt_block_trigger_installed() {
+  local db; db="$(cdt_logs_db)"
+  [ -f "$db" ] || return 1
+  local n; n="$("$CDT_SQLITE" "$db" "SELECT count(*) FROM sqlite_master WHERE type='trigger' AND name='cdg_block_logs';" 2>/dev/null)"
+  [ "${n:-0}" = "1" ]
+}
+
 cdt_over() { # <value> <threshold> -> exit 0 when value > threshold (supports decimals)
   awk -v a="$1" -v b="$2" 'BEGIN{ exit !(a+0 > b+0) }'
 }

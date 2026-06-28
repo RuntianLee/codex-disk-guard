@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# codex-disk-block — ADVANCED, opt-in. Stop the log-write churn at the database level
+# by installing a SQLite `BEFORE INSERT ... RAISE(IGNORE)` trigger on Codex's `logs`
+# table, so Codex's inserts become silent no-ops.
+#
+# This is the only user-level lever that actually stops the writes (RUST_LOG cannot),
+# but it MODIFIES Codex's own database. Read the warnings it prints. Reverse at any
+# time with codex-disk-unblock. Dry-run by default; pass --apply to actually do it.
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$HERE/../lib/common.sh" ]; then source "$HERE/../lib/common.sh";
+elif [ -f "$HERE/lib/common.sh" ]; then source "$HERE/lib/common.sh";
+else echo "common.sh not found" >&2; exit 1; fi
+
+db="$(cdt_logs_db)"
+APPLY=0; [ "${1:-}" = "--apply" ] && APPLY=1
+
+[ -f "$db" ] || { echo "no logs db at $db — nothing to block (Codex hasn't created it yet)."; exit 0; }
+
+has_table="$("$CDT_SQLITE" "$db" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='logs';" 2>/dev/null)"
+[ "${has_table:-0}" = "1" ] || { echo "no 'logs' table in $db — nothing to block."; exit 0; }
+
+if cdt_block_trigger_installed; then
+  echo "Status: the block trigger is ALREADY installed — Codex's log inserts are being ignored."
+  echo "Undo with: codex-disk-unblock"
+  exit 0
+fi
+
+echo "== codex-disk-block (apply=$APPLY) =="
+echo "Target DB: $db"
+echo "Now: insert counter=$(cdt_insert_counter), WAL=$(cdt_human_bytes "$(cdt_wal_size)")"
+echo
+echo "WARNING — this MODIFIES Codex's own database:"
+echo "  * It adds a trigger that turns Codex's log inserts into silent no-ops."
+echo "  * Codex features that read those logs back (e.g. feedback sharing) may break."
+echo "  * A Codex update that recreates the log DB will silently drop this trigger."
+echo "  * The DB is backed up first, and you can reverse it with: codex-disk-unblock"
+echo
+if [ "$APPLY" -eq 0 ]; then
+  echo "This was a preview (dry-run); nothing was changed. Re-run with --apply to install the trigger."
+  exit 0
+fi
+
+backup="${db}.block-backup-$(date +%Y%m%d-%H%M%S)"
+if ! "$CDT_SQLITE" "$db" ".backup '$backup'" 2>/dev/null; then
+  echo "error: backup failed (db busy?); aborting without any change." >&2
+  exit 1
+fi
+echo "Backup saved: $backup"
+
+out="$("$CDT_SQLITE" "$db" 2>&1 <<SQL
+PRAGMA busy_timeout=3000;
+CREATE TRIGGER IF NOT EXISTS cdg_block_logs BEFORE INSERT ON logs BEGIN SELECT RAISE(IGNORE); END;
+PRAGMA wal_checkpoint(TRUNCATE);
+SQL
+)"
+if [ $? -ne 0 ]; then
+  echo "error: could not install the trigger (db busy/locked?): $out" >&2
+  echo "Nothing partial should remain; check with: codex-disk-block" >&2
+  exit 1
+fi
+echo "Installed trigger 'cdg_block_logs' — Codex's log inserts are now ignored."
+echo "Verify it stopped: run 'codex-disk-check --measure 60' (insert counter / WAL should not grow)."
+echo "Undo any time:     codex-disk-unblock"
+exit 0

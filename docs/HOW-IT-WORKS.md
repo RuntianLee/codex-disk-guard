@@ -72,6 +72,12 @@ Deletes a **hardcoded** list of obvious junk under `~/.codex` (stale `.bak` file
 - *Why dry-run by default:* it previews and only deletes with `--apply`, so an accidental run can't lose anything.
 - *Why a hardcoded list (never a glob):* `sessions/` and `memories/` can never be selected — the safety is structural, not conditional. A guard also refuses to run if `HOME`/`CODEX_HOME` is unset.
 
+### `bin/codex-disk-block` / `codex-disk-unblock` — the opt-in "real" stop
+The only lever that actually halts the churn, because it intercepts at the SQLite layer instead of the app.
+- `codex-disk-block --apply` backs up the DB (sqlite `.backup`), installs `CREATE TRIGGER cdg_block_logs BEFORE INSERT ON logs BEGIN SELECT RAISE(IGNORE); END;`, then truncates the WAL. *Why a trigger:* `RAISE(IGNORE)` turns every insert into a silent no-op, so `sqlite_sequence`/`max(id)` freeze and the WAL stops growing — there is no app or config switch, so the table itself is the only place left to stop it.
+- *Why it's gated:* it **modifies Codex's own database**, so it is dry-run unless `--apply`, backs up first, and is reversible with `codex-disk-unblock` (`DROP TRIGGER`).
+- *Honest risks:* Codex features that read logs back may break; a Codex update that recreates the log DB drops the trigger; `codex-disk-uninstall` deliberately does **not** remove it (it warns instead, because it never modifies `~/.codex`).
+
 ### `setup.sh` / `uninstall.sh` / `launchd/*.plist.template`
 - `setup.sh` installs the commands to `~/.local/bin`, renders the two plist templates (substituting the real paths) into `~/Library/LaunchAgents`, and loads them. Preflight refuses non-macOS and missing `sqlite3`, and it warns if `~/.local/bin` isn't on your `PATH`.
 - The launchd jobs run **maintain at 03:00** and **check at 03:05** daily, user-level (no root). If the Mac is asleep, launchd catches up on wake.
@@ -80,4 +86,4 @@ Deletes a **hardcoded** list of obvious junk under `~/.codex` (stale `.bak` file
 ## 4. The known limitation (stated honestly)
 The active-use writes to `logs_2.sqlite` **cannot be eliminated** by configuration today. This tool keeps that database **bounded and observable** and removes the *idle* and *junk* portions — but it is a mitigation, not a cure. If Codex later ships a switch to disable the sink, that becomes the real fix and this tool becomes a monitor.
 
-The tool also has **no feature that lowers the write *rate***, on purpose — there is no switch to flip, so there is nothing reliable to automate. The two levers that *partially* reduce volume are configuration/behaviour, not code: raising the log level (`export RUST_LOG=error`) trims the filter-respecting categories but **not** the high-volume `target=log` TRACE rows; and fully quitting the desktop app removes its 24/7 idle writer. Use `codex-disk-check --measure` / `codex-disk-bench` to see how much either one helps on your machine.
+Lowering the write *rate* is possible only outside the app's control. The opt-in `codex-disk-block` command does it by intercepting at the SQLite layer (a `BEFORE INSERT` trigger) — the one place with no off-switch — at the cost of modifying Codex's own database (see that component above). Two lighter levers help *partially* without touching the DB: raising the log level (`export RUST_LOG=error`) trims the filter-respecting categories but **not** the high-volume `target=log` rows; and fully quitting the desktop app removes its 24/7 idle writer. Measure any of them with `codex-disk-check --measure` / `codex-disk-bench`.

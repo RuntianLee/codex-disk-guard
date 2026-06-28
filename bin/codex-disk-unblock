@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# codex-disk-unblock — remove the insert-blocking trigger installed by codex-disk-block,
+# so Codex resumes writing its logs normally. Safe to run even if no trigger is present.
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$HERE/../lib/common.sh" ]; then source "$HERE/../lib/common.sh";
+elif [ -f "$HERE/lib/common.sh" ]; then source "$HERE/lib/common.sh";
+else echo "common.sh not found" >&2; exit 1; fi
+
+db="$(cdt_logs_db)"
+[ -f "$db" ] || { echo "no logs db at $db — nothing to undo."; exit 0; }
+
+if ! cdt_block_trigger_installed; then
+  echo "The block trigger is not installed — nothing to undo."
+  exit 0
+fi
+
+out="$("$CDT_SQLITE" "$db" 2>&1 <<SQL
+PRAGMA busy_timeout=3000;
+DROP TRIGGER IF EXISTS cdg_block_logs;
+PRAGMA wal_checkpoint(TRUNCATE);
+SQL
+)"
+if [ $? -ne 0 ]; then
+  echo "error: could not drop the trigger (db busy/locked?): $out" >&2
+  exit 1
+fi
+echo "Removed trigger 'cdg_block_logs' — Codex's log inserts are no longer blocked."
+exit 0

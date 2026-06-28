@@ -20,11 +20,13 @@
 | `codex-disk-cleanup` | **Preview cleanup (dry-run).** Lists the disposable junk it *would* remove (stale backups, caches, temp dirs) and **deletes nothing** — this is expected, not a failure. Never touches `sessions/` or `memories/`. |
 | `codex-disk-cleanup --apply` | **Actually deletes** that junk. Only this form removes files. |
 | `codex-disk-bench` | **Benchmark.** Stage-by-stage comparison of write rates — idle baseline, CLI active, and (if you install the desktop app) desktop idle / active — then a side-by-side table. |
+| `codex-disk-block` / `--apply` | **⚠️ Advanced, opt-in.** Installs a SQLite trigger that **actually stops** Codex's log writes at the database level — the only thing that halts the churn. **Modifies Codex's own database**; dry-run unless `--apply`, and it backs the DB up first. |
+| `codex-disk-unblock` | Removes that trigger; Codex resumes logging normally. |
 | `codex-disk-uninstall` | **Uninstall** everything this tool installed. |
 
 `setup.sh` installs these commands into `~/.local/bin` and registers two `launchd` jobs that run **maintain at 03:00** and **check at 03:05** every day.
 
-> **Note:** this tool *monitors, maintains, and cleans* — it does **not** lower the write *rate* (there is no switch to flip). For partial ways to cut the volume, see the **[Reducing the writes](#reducing-the-writes-partial-outside-this-tool)** section below.
+> **Note:** by default this tool *monitors, maintains, and cleans* — it does not change how often Codex writes. One **opt-in, advanced** command (`codex-disk-block`) can actually stop the writes at the database level. See **[Reducing the writes](#reducing-the-writes)** below.
 
 ## Why the writes happen (and what this can / can't do)
 
@@ -32,14 +34,15 @@
 - This **cannot be turned off** by configuration today — so this tool does not claim to eliminate writes during active use. Instead it (a) keeps that database from growing without bound, (b) lets you watch the write rate over time, and (c) removes one-off junk.
 - For perspective: even at 1–2 GB/day (~0.5 TB/year), a modern SSD rated at hundreds of TBW lasts centuries. The point of this tool is awareness and hygiene, not panic.
 
-## Reducing the writes (partial, outside this tool)
+## Reducing the writes
 
-This tool has **no feature that lowers the write *rate*** — there is no switch to disable the SQLite log sink, so nothing can fully stop it (see above). `codex-disk-maintain` keeps the file *size* bounded but does not change how often Codex writes. The only levers that actually cut volume are configuration/behaviour, not code:
+By default this tool only *observes and tidies* — `codex-disk-maintain` bounds the file *size* but does not change how often Codex writes. There is **one opt-in way to actually stop the writes**, plus two lighter config/behaviour levers:
 
-- **Lower the log level** — e.g. add `export RUST_LOG=error` to `~/.zshenv`. This trims the log categories that *do* respect the filter (much of INFO/DEBUG and some `codex_*` TRACE targets), but it does **not** stop the high-volume `target=log` TRACE rows — those persist regardless. Partial relief, and the amount varies by setup.
-- **Don't keep the desktop app's daemon resident** — the 24/7 idle churn comes from the desktop app-server. Fully quitting the desktop app removes that source (the CLI alone has no idle writer).
+- **`codex-disk-block` — opt-in, advanced, actually stops it.** Installs a SQLite `BEFORE INSERT … RAISE(IGNORE)` trigger on the `logs` table, so Codex's inserts become silent no-ops and the churn halts at the database level — the only place with no off-switch. Because it **modifies Codex's own database**, it is dry-run unless you pass `--apply`, it backs the DB up first, and `codex-disk-unblock` reverses it. **Caveats:** Codex features that read those logs back (e.g. feedback sharing) may break; a Codex update that recreates the log DB will silently drop the trigger; uninstalling this tool does **not** remove the trigger (it warns you instead). Verify it worked with `codex-disk-check --measure`.
+- **Lower the log level** — `export RUST_LOG=error` in `~/.zshenv`. Trims the categories that respect the filter (much of INFO/DEBUG and some `codex_*` TRACE targets) but **not** the high-volume `target=log` rows. Partial, and varies by setup.
+- **Don't keep the desktop app's daemon resident** — the 24/7 idle churn comes from the desktop app-server; fully quitting it removes that source (the CLI alone has no idle writer).
 
-**Measure the real effect on *your* machine:** run `codex-disk-check --measure 60` (or `codex-disk-bench`) before and after the change and compare — that's exactly what this tool is for.
+**Measure the real effect on *your* machine:** run `codex-disk-check --measure 60` (or `codex-disk-bench`) before and after.
 
 ## Requirements
 
@@ -132,6 +135,8 @@ Everything this tool writes lives under your home directory, is configurable, an
 | `codex-disk-maintain` | modifies `~/.codex/logs_2.sqlite` (its maintenance target — the only file it changes); writes nothing else |
 | `codex-disk-bench` | `~/.local/state/codex-disk/bench/<stage>.json` (+ a `.residual` marker) for each stage |
 | `codex-disk-cleanup --apply` | **deletes** junk under `~/.codex`; creates no files |
+| `codex-disk-block --apply` | backs up to `~/.codex/logs_2.sqlite.block-backup-<timestamp>` and adds a trigger **inside** `~/.codex/logs_2.sqlite` |
+| `codex-disk-unblock` | removes that trigger from `~/.codex/logs_2.sqlite` |
 | daily `launchd` jobs | their stdout/stderr → `~/.local/state/codex-disk/maintain.out.log`, `maintain.err.log`, `check.out.log`, `check.err.log` |
 | `codex-disk-uninstall` | removes all of the above |
 

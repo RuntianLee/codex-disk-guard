@@ -72,6 +72,12 @@ issue 中开发者的实测:
 - *为什么默认 dry-run:* 先预览,只有加 `--apply` 才删,误跑也丢不了东西。
 - *为什么用写死清单(绝不用通配):* `sessions/` 和 `memories/` 永远不可能被选中——安全是结构性的,而非条件判断。另有守卫:`HOME`/`CODEX_HOME` 未设时拒绝运行。
 
+### `bin/codex-disk-block` / `codex-disk-unblock` —— opt-in 的"真止血"
+唯一能真正停下 churn 的杠杆,因为它拦在 SQLite 层、而不是 App 层。
+- `codex-disk-block --apply` 先备份(sqlite `.backup`),装上 `CREATE TRIGGER cdg_block_logs BEFORE INSERT ON logs BEGIN SELECT RAISE(IGNORE); END;`,再截断 WAL。*为什么用触发器:* `RAISE(IGNORE)` 让每条插入变成静默空操作,于是 `sqlite_sequence`/`max(id)` 冻结、WAL 不再增长——既然 App 和配置都没有开关,表本身就是唯一能拦的地方。
+- *为什么要 gate:* 它**会改动 Codex 自己的数据库**,所以默认 dry-run、加 `--apply` 才执行、且先备份,并可用 `codex-disk-unblock`(`DROP TRIGGER`)还原。
+- *诚实的风险:* 依赖回读日志的 Codex 功能可能失效;Codex 升级若重建日志库会丢掉触发器;`codex-disk-uninstall` 刻意**不**移除它(只提示你,因为它从不改动 `~/.codex`)。
+
 ### `setup.sh` / `uninstall.sh` / `launchd/*.plist.template`
 - `setup.sh` 把命令装到 `~/.local/bin`,把两个 plist 模板渲染(替换成真实路径)到 `~/Library/LaunchAgents` 并加载。预检会拒绝非 macOS 和缺少 `sqlite3` 的情况,并在 `~/.local/bin` 不在 `PATH` 时提醒。
 - launchd 任务每日 **03:00 维护**、**03:05 检查**,用户级(无 root)。Mac 睡眠时 launchd 唤醒后补跑。
@@ -80,4 +86,4 @@ issue 中开发者的实测:
 ## 4. 已知限制(诚实说明)
 活跃使用时对 `logs_2.sqlite` 的写入,**目前无法用配置消除**。本工具让这个库**可控且可观测**,并清掉其中*空闲*和*垃圾*的部分——但它是缓解,不是根治。若 Codex 日后提供关闭该 sink 的开关,那才是真正的解法,本工具届时退化为一个监测器。
 
-本工具也**刻意不提供降低写入*速率*的功能**——既然没有开关可拨,就没有可靠的东西可自动化。能*部分*减少写入量的两个杠杆都是配置/行为、不是代码:调高日志级别(`export RUST_LOG=error`)能砍掉遵守过滤器的那部分,但**拦不住**高频的 `target=log` TRACE 行;彻底退出桌面版可消除它 7×24 的空闲写入者。用 `codex-disk-check --measure` / `codex-disk-bench` 实测这两招在你机器上各能帮多少。
+降低写入*速率*只能在 App 控制之外做到。opt-in 的 `codex-disk-block` 命令通过拦在 SQLite 层(一个 `BEFORE INSERT` 触发器)实现——那是唯一没有开关的地方——代价是改动 Codex 自己的数据库(见上面那个组件)。另有两个更轻、不碰 DB 的杠杆能*部分*减少:调高日志级别(`export RUST_LOG=error`)砍掉遵守过滤器的那部分,但**拦不住**高频 `target=log` 行;彻底退出桌面版可消除它 7×24 的空闲写入者。用 `codex-disk-check --measure` / `codex-disk-bench` 实测各能帮多少。
