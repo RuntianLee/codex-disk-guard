@@ -1,7 +1,5 @@
 # codex-disk-guard
 
-[![tests](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml/badge.svg)](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml)
-
 **English** | [中文](README.zh-CN.md)
 
 **Tame the OpenAI Codex CLI's constant disk writing on macOS — monitor it, keep its log database from growing, and clean up junk, without ever touching your sessions or memories.**
@@ -119,21 +117,6 @@ codex-disk-uninstall
 ```
 
 Removes the commands, the two launchd jobs, and the report directory. It does not change any Codex config you may have edited yourself (that's yours to manage).
-
-## Development
-
-```bash
-./tests/run_tests.sh      # runs the full bash test suite (no dependencies)
-```
-
-Tests are plain bash with a tiny assertion helper — no `bats` or other tooling required. They run everything against temporary fixture directories and never touch your real `~/.codex`, `~/.local/bin`, or `~/Library/LaunchAgents`.
-
-## Design & development
-
-Curious about *why* it works this way and *how* it was built? These documents capture the full design process (written in Chinese):
-
-- **[docs/DESIGN.md](docs/DESIGN.md)** — the design rationale: how the problem was diagnosed, the approaches considered, the trade-offs, and the verification plan.
-- **[docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md)** — the step-by-step, test-driven build plan (one task at a time, red → green → commit).
 
 ## License
 

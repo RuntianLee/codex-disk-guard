@@ -1,3 +1,8 @@
-tests/.tmp/
+# Kept local-only to keep the public repo minimal (design notes, tests, CI)
+docs/
+tests/
+.github/
+
+# Transient
 *.bak
 .DS_Store

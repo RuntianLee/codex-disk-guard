@@ -1,7 +1,5 @@
 # codex-disk-guard
 
-[![tests](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml/badge.svg)](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml)
-
 [English](README.md) | **中文**
 
 **在 macOS 上治理 OpenAI Codex CLI 的频繁写盘 —— 监测写入、控制日志库不再膨胀、清理垃圾文件,且绝不动你的会话记录和记忆数据。**
@@ -119,21 +117,6 @@ codex-disk-uninstall
 ```
 
 删除命令、两个 launchd 任务、报告目录。它不会改动你自己手动编辑过的任何 Codex 配置(那部分由你自行管理)。
-
-## 开发
-
-```bash
-./tests/run_tests.sh      # 运行完整的 bash 测试套件(零依赖)
-```
-
-测试是纯 bash + 一个极小的断言 helper,不需要 `bats` 之类的工具。全部针对临时 fixture 目录运行,绝不触碰你真实的 `~/.codex`、`~/.local/bin`、`~/Library/LaunchAgents`。
-
-## 设计与开发
-
-想了解它*为什么*这样设计、*如何*一步步建起来?下面两份文档记录了完整的设计与实现过程:
-
-- **[docs/DESIGN.md](docs/DESIGN.md)** —— 设计文档:问题如何被诊断、考虑过哪些方案、取舍是什么、以及验证方法。
-- **[docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md)** —— 逐任务、测试驱动(TDD)的实施计划(一次一个任务,红 → 绿 → 提交)。
 
 ## 许可证
 
