@@ -6,7 +6,7 @@
 
 > ⚠️ **Disclaimer.** This project was built entirely by an AI agent. It was tested and ran without anomalies on the author's machine (macOS, Apple Silicon; OpenAI Codex CLI **`0.142.2`**), but **no guarantee is made about its safety on other systems or with other data.** Please read the scripts before running them and use at your own risk — start with the dry-run / monitoring commands (`codex-disk-check`, `codex-disk-cleanup` without `--apply`).
 
-> Background: the Codex CLI continuously writes high-frequency `TRACE` logs into `~/.codex/logs_2.sqlite` (see [openai/codex#29532](https://github.com/openai/codex/issues/29532)). The `RUST_LOG` environment variable does **not** stop it, because the SQLite log sink has its own tracing layer. There is currently no config switch to disable that sink. This toolkit does not try to patch Codex; it gives you monitoring, low-frequency maintenance, and safe cleanup around it.
+> Background: the Codex CLI continuously writes high-frequency `TRACE` logs into `~/.codex/logs_2.sqlite` (see [openai/codex#29532](https://github.com/openai/codex/issues/29532)). The `RUST_LOG` environment variable does **not** stop it, because the SQLite log sink has its own tracing layer. There is currently no config switch to disable that sink. By default this toolkit works *around* Codex without modifying it — monitoring, low-frequency maintenance, and safe cleanup. It also ships one **opt-in** command (`codex-disk-block`) that can actually stop the writes at the database level; that one **does** modify Codex's own log DB (with a backup first and an easy undo).
 
 > 📖 **New here?** Read **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** for the background, the approach, and a component-by-component explanation of *how* and *why* it works.
 
@@ -156,7 +156,7 @@ Paths are overridable: `CDT_PREFIX` (commands), `CDT_AGENTS_DIR` (timers), `CDT_
 codex-disk-uninstall
 ```
 
-Removes the commands, the two launchd jobs, and the report directory. It does not change any Codex config you may have edited yourself (that's yours to manage).
+Removes the commands, the two launchd jobs, and the report directory. If you used `codex-disk-block`, it also drops that trigger from Codex's log DB (lock-safe), restoring normal logging. It does not change any Codex config you may have edited yourself (that's yours to manage).
 
 ## Design & how it works
 

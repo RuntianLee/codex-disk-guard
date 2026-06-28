@@ -6,7 +6,7 @@
 
 > ⚠️ **免责声明。** 本项目完全由 AI 智能体完成。已在作者本机(macOS,Apple Silicon;OpenAI Codex CLI **`0.142.2`**)测试通过、运行无异常,但**不保证在其他系统环境或数据下的安全性,请谨慎尝试。** 运行前请先阅读脚本代码、自行承担风险——建议先用 dry-run / 监测类命令(`codex-disk-check`、不带 `--apply` 的 `codex-disk-cleanup`)试探。
 
-> 背景:Codex CLI 会持续把高频 `TRACE` 日志写进 `~/.codex/logs_2.sqlite`(见 [openai/codex#29532](https://github.com/openai/codex/issues/29532))。`RUST_LOG` 环境变量**拦不住**它,因为这个 SQLite 日志 sink 有独立的 tracing 层,而且目前没有配置开关能关掉它。本工具不修改 Codex 本身,而是在它周围提供监测、低频维护和安全清理。
+> 背景:Codex CLI 会持续把高频 `TRACE` 日志写进 `~/.codex/logs_2.sqlite`(见 [openai/codex#29532](https://github.com/openai/codex/issues/29532))。`RUST_LOG` 环境变量**拦不住**它,因为这个 SQLite 日志 sink 有独立的 tracing 层,而且目前没有配置开关能关掉它。默认情况下本工具在 Codex **周围**工作、不改动它本身——监测、低频维护、安全清理。此外它还提供一个 **opt-in** 命令(`codex-disk-block`),能在数据库层真正止住写入;这一个**会**改动 Codex 自己的日志库(但会先备份、可一键还原)。
 
 > 📖 **想了解原理?** 先看 **[docs/HOW-IT-WORKS.zh-CN.md](docs/HOW-IT-WORKS.zh-CN.md)**:背景、方案、以及逐组件"是什么 + 为什么"的实现讲解。
 
@@ -156,7 +156,7 @@ codex-disk-bench report           # 出对照表(无需 sudo)
 codex-disk-uninstall
 ```
 
-删除命令、两个 launchd 任务、报告目录。它不会改动你自己手动编辑过的任何 Codex 配置(那部分由你自行管理)。
+删除命令、两个 launchd 任务、报告目录。如果你用过 `codex-disk-block`,它还会(锁安全地)从 Codex 日志库移除那个触发器,恢复正常日志。它不会改动你自己手动编辑过的任何 Codex 配置(那部分由你自行管理)。
 
 ## 设计与实现
 

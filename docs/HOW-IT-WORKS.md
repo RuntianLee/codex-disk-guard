@@ -19,12 +19,14 @@ The practical worry: a steady stream of writes to the SSD, 24/7 if the desktop a
 
 ## 2. Solution — the approach (and why)
 
-Because the writes **cannot be turned off** today, the tool deliberately does *not* promise to stop them. Instead it does four things **around** Codex, never modifying Codex itself:
+By default the tool works **around** Codex without modifying it, doing four things:
 
 1. **Monitor** the write rate (so you know if it's bad / getting worse).
 2. **Maintain** the log database (so it never grows without bound).
 3. **Measure** precisely on demand (so you have hard numbers).
 4. **Clean** one-off junk (so disk space is reclaimed).
+
+Because the high-volume writes have no off-switch, the tool also offers a fifth, **opt-in** capability that *does* stop them — `codex-disk-block` — which modifies Codex's own log DB (a SQLite trigger; backed up first and reversible). It is gated behind `--apply` and is never run automatically.
 
 The design decisions, and the reason behind each:
 
@@ -81,7 +83,7 @@ The only lever that actually halts the churn, because it intercepts at the SQLit
 ### `setup.sh` / `uninstall.sh` / `launchd/*.plist.template`
 - `setup.sh` installs the commands to `~/.local/bin`, renders the two plist templates (substituting the real paths) into `~/Library/LaunchAgents`, and loads them. Preflight refuses non-macOS and missing `sqlite3`, and it warns if `~/.local/bin` isn't on your `PATH`.
 - The launchd jobs run **maintain at 03:00** and **check at 03:05** daily, user-level (no root). If the Mac is asleep, launchd catches up on wake.
-- `uninstall.sh` removes exactly what setup created (commands, lib, plists, the whole state dir) and lists them; it never touches `~/.codex` or your own config edits.
+- `uninstall.sh` removes exactly what setup created (commands, lib, plists, the whole state dir) and lists them. The only thing it touches in `~/.codex` is the optional block trigger — it drops that if present (lock-safe), restoring normal logging — and it never touches your sessions, memories, log rows, or your own config edits.
 
 ## 4. The known limitation (stated honestly)
 The active-use writes to `logs_2.sqlite` **cannot be eliminated** by configuration today. This tool keeps that database **bounded and observable** and removes the *idle* and *junk* portions — but it is a mitigation, not a cure. If Codex later ships a switch to disable the sink, that becomes the real fix and this tool becomes a monitor.
