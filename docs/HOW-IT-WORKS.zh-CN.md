@@ -76,7 +76,7 @@ issue 中开发者的实测:
 唯一能真正停下 churn 的杠杆,因为它拦在 SQLite 层、而不是 App 层。
 - `codex-disk-block --apply` 先备份(sqlite `.backup`),装上 `CREATE TRIGGER cdg_block_logs BEFORE INSERT ON logs BEGIN SELECT RAISE(IGNORE); END;`,再截断 WAL。*为什么用触发器:* `RAISE(IGNORE)` 让每条插入变成静默空操作,于是 `sqlite_sequence`/`max(id)` 冻结、WAL 不再增长——既然 App 和配置都没有开关,表本身就是唯一能拦的地方。
 - *为什么要 gate:* 它**会改动 Codex 自己的数据库**,所以默认 dry-run、加 `--apply` 才执行、且先备份,并可用 `codex-disk-unblock`(`DROP TRIGGER`)还原。
-- *诚实的风险:* 依赖回读日志的 Codex 功能可能失效;Codex 升级若重建日志库会丢掉触发器;`codex-disk-uninstall` 刻意**不**移除它(只提示你,因为它从不改动 `~/.codex`)。
+- *诚实的风险:* 依赖回读日志的 Codex 功能可能失效;Codex 升级若重建日志库会丢掉触发器。`codex-disk-uninstall` 会自动移除这一个触发器(锁安全),所以干净卸载会恢复 Codex 正常日志——它仍然绝不碰你的 sessions、memories 或日志行。
 
 ### `setup.sh` / `uninstall.sh` / `launchd/*.plist.template`
 - `setup.sh` 把命令装到 `~/.local/bin`,把两个 plist 模板渲染(替换成真实路径)到 `~/Library/LaunchAgents` 并加载。预检会拒绝非 macOS 和缺少 `sqlite3` 的情况,并在 `~/.local/bin` 不在 `PATH` 时提醒。

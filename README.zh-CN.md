@@ -38,7 +38,7 @@
 
 默认情况下本工具只*观测和整理*——`codex-disk-maintain` 控制文件*体积*,但不改变 Codex 写入的频率。有**一个 opt-in 的办法能真正止住写入**,外加两个更轻的配置/行为杠杆:
 
-- **`codex-disk-block` —— opt-in、进阶、真正止血。** 在 `logs` 表上装一个 SQLite `BEFORE INSERT … RAISE(IGNORE)` 触发器,让 Codex 的插入变成静默空操作,在**数据库层**停住 churn——这是唯一没有开关的那一层。因为它**会改动 Codex 自己的数据库**:默认 dry-run,加 `--apply` 才执行,且**先备份**,`codex-disk-unblock` 可还原。**注意事项:** 依赖回读日志的 Codex 功能(如 feedback 上报)可能失效;Codex 升级若重建日志库会静默丢掉该触发器;卸载本工具**不会**移除触发器(只会提示你)。用 `codex-disk-check --measure` 验证是否生效。
+- **`codex-disk-block` —— opt-in、进阶、真正止血。** 在 `logs` 表上装一个 SQLite `BEFORE INSERT … RAISE(IGNORE)` 触发器,让 Codex 的插入变成静默空操作,在**数据库层**停住 churn——这是唯一没有开关的那一层。因为它**会改动 Codex 自己的数据库**:默认 dry-run,加 `--apply` 才执行,且**先备份**,`codex-disk-unblock` 可还原。**注意事项:** 依赖回读日志的 Codex 功能(如 feedback 上报)可能失效;Codex 升级若重建日志库会静默丢掉该触发器;卸载本工具会**自动移除该触发器**(锁安全),恢复 Codex 正常日志。用 `codex-disk-check --measure` 验证是否生效。
 - **调高日志级别** —— 在 `~/.zshenv` 加 `export RUST_LOG=error`。能砍掉遵守过滤器的那部分(大部分 INFO/DEBUG 和部分 `codex_*` TRACE target),但**拦不住**高频的 `target=log` 行。部分缓解,效果因环境而异。
 - **别让桌面版 daemon 常驻** —— 7×24 的空闲 churn 来自桌面版 app-server;彻底退出它就消除了这个来源(纯 CLI 本身没有空闲写入者)。
 

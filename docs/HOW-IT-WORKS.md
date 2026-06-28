@@ -76,7 +76,7 @@ Deletes a **hardcoded** list of obvious junk under `~/.codex` (stale `.bak` file
 The only lever that actually halts the churn, because it intercepts at the SQLite layer instead of the app.
 - `codex-disk-block --apply` backs up the DB (sqlite `.backup`), installs `CREATE TRIGGER cdg_block_logs BEFORE INSERT ON logs BEGIN SELECT RAISE(IGNORE); END;`, then truncates the WAL. *Why a trigger:* `RAISE(IGNORE)` turns every insert into a silent no-op, so `sqlite_sequence`/`max(id)` freeze and the WAL stops growing — there is no app or config switch, so the table itself is the only place left to stop it.
 - *Why it's gated:* it **modifies Codex's own database**, so it is dry-run unless `--apply`, backs up first, and is reversible with `codex-disk-unblock` (`DROP TRIGGER`).
-- *Honest risks:* Codex features that read logs back may break; a Codex update that recreates the log DB drops the trigger; `codex-disk-uninstall` deliberately does **not** remove it (it warns instead, because it never modifies `~/.codex`).
+- *Honest risks:* Codex features that read logs back may break; a Codex update that recreates the log DB drops the trigger. `codex-disk-uninstall` automatically removes this one trigger (lock-safe), so a clean uninstall restores normal Codex logging — it still never touches your sessions, memories, or log rows.
 
 ### `setup.sh` / `uninstall.sh` / `launchd/*.plist.template`
 - `setup.sh` installs the commands to `~/.local/bin`, renders the two plist templates (substituting the real paths) into `~/Library/LaunchAgents`, and loads them. Preflight refuses non-macOS and missing `sqlite3`, and it warns if `~/.local/bin` isn't on your `PATH`.

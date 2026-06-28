@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # uninstall.sh — precise uninstall: stop the timers and remove the scripts/lib/plists/report dir.
-# Removes only what setup.sh installed.
+# Removes only what this tool created. If codex-disk-block left an insert-blocking trigger in
+# Codex's log DB, this also drops that ONE trigger (restoring normal Codex logging); it never
+# touches Codex's sessions, memories, or log rows.
 set -u
 PREFIX="${CDT_PREFIX:-$HOME/.local/bin}"
 AGENTS="${CDT_AGENTS_DIR:-$HOME/Library/LaunchAgents}"
 STATE="${CDT_STATE_DIR:-$HOME/.local/state/codex-disk}"
 
-# Detect (do NOT remove) a leftover codex-disk-block trigger in Codex's own DB, so we
-# can warn the user — this uninstaller never modifies ~/.codex.
+# Detect a leftover codex-disk-block trigger so we can drop it (see end of script).
 logsdb="${CODEX_HOME:-$HOME/.codex}/logs_2.sqlite"
 sqlite_bin="$(command -v sqlite3 2>/dev/null || echo /usr/bin/sqlite3)"
 block_present=0
@@ -30,14 +31,26 @@ echo "Removed everything this tool wrote:"
 echo "  commands:  $PREFIX/codex-disk-{maintain,check,bench,cleanup,block,unblock,uninstall}  (+ $PREFIX/lib/common.sh)"
 echo "  timers:    $AGENTS/com.user.codex-disk-maintain.plist, $AGENTS/com.user.codex-disk-check.plist"
 echo "  reports:   $STATE/  (report.log, last-sample, bench/, *.out/err.log)"
-echo "Not touched: ~/.codex (Codex's own data: logs_2.sqlite, sessions, memories)."
+echo "Left intact: your Codex sessions, memories, and log rows in ~/.codex."
 echo "Note: any changes you made yourself to Codex config.toml / RUST_LOG / computer-use are NOT reverted; handle those manually."
+
+# If codex-disk-block installed a trigger, drop that one trigger (lock-safe) to restore
+# normal Codex logging. If the DB is busy, fall back to telling the user how to do it.
 if [ "$block_present" = "1" ]; then
   echo
-  echo "IMPORTANT: a codex-disk-block trigger is STILL installed in $logsdb."
-  echo "  This uninstaller does not modify Codex's data, so it left the trigger in place."
-  echo "  Codex log inserts remain blocked. To restore normal Codex logging, run:"
-  echo "    sqlite3 \"$logsdb\" \"DROP TRIGGER IF EXISTS cdg_block_logs;\""
+  drop_out="$("$sqlite_bin" "$logsdb" 2>&1 <<SQL
+PRAGMA busy_timeout=3000;
+DROP TRIGGER IF EXISTS cdg_block_logs;
+PRAGMA wal_checkpoint(TRUNCATE);
+SQL
+)"
+  if [ $? -eq 0 ]; then
+    echo "Also removed the codex-disk-block trigger from $logsdb — Codex logging is back to normal."
+  else
+    echo "WARNING: could not remove the codex-disk-block trigger (DB busy?): $drop_out"
+    echo "  It is still installed in $logsdb; Codex log inserts remain blocked. Remove it later with:"
+    echo "    sqlite3 \"$logsdb\" \"DROP TRIGGER IF EXISTS cdg_block_logs;\""
+  fi
 fi
 # Finally remove this uninstaller itself.
 rm -f "$PREFIX/codex-disk-uninstall"
