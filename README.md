@@ -30,6 +30,15 @@
 - This **cannot be turned off** by configuration today — so this tool does not claim to eliminate writes during active use. Instead it (a) keeps that database from growing without bound, (b) lets you watch the write rate over time, and (c) removes one-off junk.
 - For perspective: even at 1–2 GB/day (~0.5 TB/year), a modern SSD rated at hundreds of TBW lasts centuries. The point of this tool is awareness and hygiene, not panic.
 
+## Reducing the writes (partial — outside this tool)
+
+This tool has **no feature that lowers the write *rate*** — there is no switch to disable the SQLite log sink, so nothing can fully stop it (see above). `codex-disk-maintain` keeps the file *size* bounded but does not change how often Codex writes. The only levers that actually cut volume are configuration/behaviour, not code:
+
+- **Lower the log level** — e.g. add `export RUST_LOG=error` to `~/.zshenv`. This trims the log categories that *do* respect the filter (much of INFO/DEBUG and some `codex_*` TRACE targets), but it does **not** stop the high-volume `target=log` TRACE rows — those persist regardless. Partial relief, and the amount varies by setup.
+- **Don't keep the desktop app's daemon resident** — the 24/7 idle churn comes from the desktop app-server. Fully quitting the desktop app removes that source (the CLI alone has no idle writer).
+
+**Measure the real effect on *your* machine:** run `codex-disk-check --measure 60` (or `codex-disk-bench`) before and after the change and compare — that's exactly what this tool is for.
+
 ## Requirements
 
 - **macOS only** (uses `launchd`, `fs_usage`, BSD `stat`). The installer refuses to run elsewhere.

@@ -79,3 +79,5 @@ Deletes a **hardcoded** list of obvious junk under `~/.codex` (stale `.bak` file
 
 ## 4. The known limitation (stated honestly)
 The active-use writes to `logs_2.sqlite` **cannot be eliminated** by configuration today. This tool keeps that database **bounded and observable** and removes the *idle* and *junk* portions — but it is a mitigation, not a cure. If Codex later ships a switch to disable the sink, that becomes the real fix and this tool becomes a monitor.
+
+The tool also has **no feature that lowers the write *rate***, on purpose — there is no switch to flip, so there is nothing reliable to automate. The two levers that *partially* reduce volume are configuration/behaviour, not code: raising the log level (`export RUST_LOG=error`) trims the filter-respecting categories but **not** the high-volume `target=log` TRACE rows; and fully quitting the desktop app removes its 24/7 idle writer. Use `codex-disk-check --measure` / `codex-disk-bench` to see how much either one helps on your machine.
