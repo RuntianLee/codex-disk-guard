@@ -16,7 +16,11 @@ rm -f "$AGENTS/com.user.codex-disk-maintain.plist" "$AGENTS/com.user.codex-disk-
 rm -f "$PREFIX/codex-disk-maintain" "$PREFIX/codex-disk-check" "$PREFIX/codex-disk-bench" "$PREFIX/codex-disk-cleanup" "$PREFIX/lib/common.sh"
 rmdir "$PREFIX/lib" 2>/dev/null || true
 [ -n "$STATE" ] && rm -rf "$STATE"
-echo "Removed the scripts, timers, and report directory."
+echo "Removed everything this tool wrote:"
+echo "  commands:  $PREFIX/codex-disk-{maintain,check,bench,cleanup,uninstall}  (+ $PREFIX/lib/common.sh)"
+echo "  timers:    $AGENTS/com.user.codex-disk-maintain.plist, $AGENTS/com.user.codex-disk-check.plist"
+echo "  reports:   $STATE/  (report.log, last-sample, bench/, *.out/err.log)"
+echo "Not touched: ~/.codex (Codex's own data: logs_2.sqlite, sessions, memories)."
 echo "Note: any changes you made yourself to Codex config.toml / RUST_LOG / computer-use are NOT reverted; handle those manually."
 # Finally remove this uninstaller itself.
 rm -f "$PREFIX/codex-disk-uninstall"
