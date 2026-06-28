@@ -1,4 +1,4 @@
-# codex-disk-tools
+# codex-disk-guard
 
 **Tame the OpenAI Codex CLI's constant disk writing on macOS — monitor it, keep its log database from growing, and clean up junk, without ever touching your sessions or memories.**
 
@@ -40,8 +40,8 @@
 ### Install
 
 ```bash
-git clone https://github.com/<you>/codex-disk-tools.git
-cd codex-disk-tools
+git clone https://github.com/<your-username>/codex-disk-guard.git
+cd codex-disk-guard
 ./setup.sh
 ```
 
@@ -153,8 +153,8 @@ MIT — see [LICENSE](LICENSE).
 ### 安装
 
 ```bash
-git clone https://github.com/<你>/codex-disk-tools.git
-cd codex-disk-tools
+git clone https://github.com/<你的用户名>/codex-disk-guard.git
+cd codex-disk-guard
 ./setup.sh
 ```
 
