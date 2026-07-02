@@ -167,6 +167,10 @@ codex-disk-uninstall
 
 完整的来龙去脉——背景、方案取舍的原因、以及逐组件的实现讲解(每部分是什么、*为什么*这样做)——见 **[docs/HOW-IT-WORKS.zh-CN.md](docs/HOW-IT-WORKS.zh-CN.md)**。
 
+## 相关项目
+
+- **[claude-codex-sync](https://github.com/RuntianLee/claude-codex-sync)** —— 作者的另一个开源项目。一个打通 Claude Code 与 Codex 的 Node.js 工具:把 Claude 的全局指令、规则和项目记忆安全地转换成 Codex 能读取的 Markdown。它绝不改动 Claude 的原生状态,也不碰 Codex 的记忆数据库,需显式确认参数、改动前自动备份。如果你 Codex 和 Claude Code 都用,会很方便。
+
 ## 许可证
 
 MIT —— 见 [LICENSE](LICENSE)。
