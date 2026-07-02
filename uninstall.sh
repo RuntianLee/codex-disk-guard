@@ -26,11 +26,21 @@ fi
 rm -f "$AGENTS/com.user.codex-disk-maintain.plist" "$AGENTS/com.user.codex-disk-check.plist"
 rm -f "$PREFIX/codex-disk-maintain" "$PREFIX/codex-disk-check" "$PREFIX/codex-disk-bench" "$PREFIX/codex-disk-cleanup" "$PREFIX/codex-disk-block" "$PREFIX/codex-disk-unblock" "$PREFIX/lib/common.sh"
 rmdir "$PREFIX/lib" 2>/dev/null || true
-[ -n "$STATE" ] && rm -rf "$STATE"
+# Remove only the files this tool writes inside STATE, then remove the dir if it
+# is empty. Never blanket-delete a user-supplied CDT_STATE_DIR: it may be a
+# pre-existing directory holding unrelated files.
+rm -f "$STATE/report.log" "$STATE/last-sample" \
+      "$STATE/check.out.log" "$STATE/check.err.log" \
+      "$STATE/maintain.out.log" "$STATE/maintain.err.log"
+rm -f "$STATE/bench/"*.json "$STATE/bench/"*.residual 2>/dev/null
+rmdir "$STATE/bench" 2>/dev/null || true
+if ! rmdir "$STATE" 2>/dev/null && [ -d "$STATE" ]; then
+  echo "note: $STATE contains files this tool did not create; those are left in place."
+fi
 echo "Removed everything this tool wrote:"
 echo "  commands:  $PREFIX/codex-disk-{maintain,check,bench,cleanup,block,unblock,uninstall}  (+ $PREFIX/lib/common.sh)"
 echo "  timers:    $AGENTS/com.user.codex-disk-maintain.plist, $AGENTS/com.user.codex-disk-check.plist"
-echo "  reports:   $STATE/  (report.log, last-sample, bench/, *.out/err.log)"
+echo "  reports:   $STATE/report.log, last-sample, bench/, *.out/err.log (dir removed when empty)"
 echo "Left intact: your Codex sessions, memories, and log rows in ~/.codex."
 echo "Note: any changes you made yourself to Codex config.toml / RUST_LOG / computer-use are NOT reverted; handle those manually."
 
