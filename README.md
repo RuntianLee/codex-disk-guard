@@ -167,6 +167,10 @@ Removes the commands, the two launchd jobs, and the report directory. If you use
 
 For the full story — the background, the reasoning behind the approach, and a component-by-component walkthrough (what each part does and *why*) — see **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)**.
 
+## Related projects
+
+- **[claude-codex-sync](https://github.com/RuntianLee/claude-codex-sync)** — another open-source tool by the same author. A Node.js utility that bridges Claude Code and Codex, safely converting Claude's global instructions, rules, and project memory into Markdown that Codex can read. It never modifies Claude's native state or Codex's memory database, requires an explicit confirmation flag, and backs up before any change. Handy if you use both Codex and Claude Code.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
