@@ -70,3 +70,16 @@ l8b_err="$(mktemp)"
 env CDT_PREFIX="$(mktemp -d)/we\\ird" CDT_AGENTS_DIR="$(mktemp -d)" CDT_STATE_DIR="$(mktemp -d)" \
     CDT_NO_LAUNCHCTL=1 bash "$ROOT/setup.sh" >/dev/null 2>"$l8b_err" || true
 assert_true "setup refuses CDT_PREFIX containing backslash" grep -q 'must not contain' "$l8b_err"
+
+# 重构: label 前缀单一真源——模板不再硬编码 label,uninstall 的回退字面量与 common.sh 一致
+assert_false "check template has no hardcoded label"    grep -q 'com\.user\.codex-disk' "$ROOT/launchd/check.plist.template"
+assert_false "maintain template has no hardcoded label" grep -q 'com\.user\.codex-disk' "$ROOT/launchd/maintain.plist.template"
+lib_prefix="$(bash -c "source '$ROOT/lib/common.sh'; printf '%s' \"\$CDT_LAUNCHD_LABEL_PREFIX\"")"
+fallback_prefix="$(sed -n 's/.*CDT_LAUNCHD_LABEL_PREFIX:=\([^}]*\)}.*/\1/p' "$ROOT/uninstall.sh")"
+assert_eq "$lib_prefix" "$fallback_prefix" "uninstall fallback prefix matches common.sh"
+# 渲染出的 plist 里 label 依然正确(端到端)
+prefix4="$(mktemp -d)"; agents4="$(mktemp -d)"; state4="$(mktemp -d)"
+env CDT_PREFIX="$prefix4" CDT_AGENTS_DIR="$agents4" CDT_STATE_DIR="$state4" \
+    CDT_NO_LAUNCHCTL=1 bash "$ROOT/setup.sh" >/dev/null 2>&1
+assert_true "rendered plist carries the real label" \
+  grep -q '<string>com.user.codex-disk-maintain</string>' "$agents4/com.user.codex-disk-maintain.plist"

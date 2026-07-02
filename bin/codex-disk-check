@@ -27,21 +27,9 @@ state="$(cdt_state_dir)"; mkdir -p "$state"
 report="$state/report.log"; last="$state/last-sample"
 now="$(date +%s)"
 wal="$(cdt_wal_size)"
-wal_warn="${CDT_WAL_WARN_BYTES:-8388608}"
-rate_warn="${CDT_LOGS_RATE_WARN_MB_DAY:-50}"
-rate_min_window="${CDT_MIN_RATE_WINDOW_S:-300}"
-
-# Validate the numeric knobs: a typo'd env var must fall back loudly, not
-# silently coerce to 0 in awk and produce phantom WARNs.
-case "$wal_warn" in ''|*[!0-9]*)
-  echo "warn: invalid CDT_WAL_WARN_BYTES='$wal_warn', using 8388608" >&2; wal_warn=8388608 ;;
-esac
-case "$rate_warn" in ''|.|*[!0-9.]*|*.*.*)
-  echo "warn: invalid CDT_LOGS_RATE_WARN_MB_DAY='$rate_warn', using 50" >&2; rate_warn=50 ;;
-esac
-case "$rate_min_window" in ''|*[!0-9]*)
-  echo "warn: invalid CDT_MIN_RATE_WINDOW_S='$rate_min_window', using 300" >&2; rate_min_window=300 ;;
-esac
+wal_warn="$(cdt_validate_int CDT_WAL_WARN_BYTES 8388608)"
+rate_warn="$(cdt_validate_num CDT_LOGS_RATE_WARN_MB_DAY 50)"
+rate_min_window="$(cdt_validate_int CDT_MIN_RATE_WINDOW_S 300)"
 
 if [ "$mode" = "measure" ]; then cdt_measure "$measure_secs" "$want_json"; exit $?; fi
 

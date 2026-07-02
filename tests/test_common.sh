@@ -48,3 +48,16 @@ assert_eq "1" "$real_agent" "genuine codex agent is still detected"
 # L5: 多目录 ls 不得混入目录头行(形如 "agent: /path:")
 headers="$(HOME="$fakehome" cdt_detect_residual | grep -E '^agent: /' || true)"
 assert_eq "" "$headers" "no ls directory-header noise in agent lines"
+
+# 重构: 数字环境变量校验的公共函数
+assert_eq "42"  "$(CDT_X=42 cdt_validate_int CDT_X 7 2>/dev/null)"    "validate_int passes a good value"
+assert_eq "7"   "$(CDT_X=abc cdt_validate_int CDT_X 7 2>/dev/null)"   "validate_int falls back on garbage"
+assert_eq "7"   "$(cdt_validate_int CDT_UNSET_X 7 2>/dev/null)"       "validate_int uses default when unset"
+v_err="$(mktemp)"
+CDT_X=abc cdt_validate_int CDT_X 7 >/dev/null 2>"$v_err"
+assert_true "validate_int notes the fallback on stderr" grep -q "invalid CDT_X" "$v_err"
+assert_eq "0.5" "$(CDT_X=0.5 cdt_validate_num CDT_X 50 2>/dev/null)"  "validate_num accepts decimals"
+assert_eq "50"  "$(CDT_X=1.2.3 cdt_validate_num CDT_X 50 2>/dev/null)" "validate_num rejects double dots"
+
+# 重构: launchd label 前缀单一真源
+assert_eq "com.user.codex-disk-" "$CDT_LAUNCHD_LABEL_PREFIX" "label prefix defined in common.sh"
