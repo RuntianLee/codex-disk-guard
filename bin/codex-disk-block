@@ -60,6 +60,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 echo "Installed trigger 'cdg_block_logs' — Codex's log inserts are now ignored."
-echo "Verify it stopped: run 'codex-disk-check --measure 60' (insert counter / WAL should not grow)."
+echo "Verify it stopped: run 'codex-disk-check' twice a few minutes apart — the insert counter should freeze."
+echo "Byte-level confirmation: 'codex-disk-check --measure 60' (WAL / write bytes should stay flat)."
 echo "Undo any time:     codex-disk-unblock"
 exit 0
