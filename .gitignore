@@ -1,10 +1,7 @@
-# Kept local-only to keep the public repo minimal (tests + CI)
-tests/
-.github/
-
 # Transient
 *.bak
 .DS_Store
+tests/.tmp/
 
 # Local working files (security reports, plan docs)
 .gstack/
