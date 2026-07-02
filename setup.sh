@@ -18,6 +18,17 @@ fi
 PREFIX="${CDT_PREFIX:-$HOME/.local/bin}"
 AGENTS="${CDT_AGENTS_DIR:-$HOME/Library/LaunchAgents}"
 STATE="${CDT_STATE_DIR:-$HOME/.local/state/codex-disk}"
+
+# The plist render below uses sed with '#' as the delimiter; a path containing
+# '#', '&', '\' or a newline would produce a silently-broken plist. Refuse instead.
+nl='
+'
+case "${PREFIX}${AGENTS}${STATE}" in
+  *'#'*|*'&'*|*'\'*|*"$nl"*)
+    echo "error: CDT_PREFIX / CDT_AGENTS_DIR / CDT_STATE_DIR must not contain '#', '&', '\\' or newlines." >&2
+    exit 1 ;;
+esac
+
 mkdir -p "$PREFIX/lib" "$AGENTS" "$STATE"
 
 # 1. Deploy the executables + shared lib.
