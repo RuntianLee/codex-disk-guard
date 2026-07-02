@@ -17,6 +17,11 @@ targets=(
   "$HOME_C/cache/remote_plugin_catalog"
   "$HOME_C/computer-use"
 )
+# codex-disk-block's DB backups. The one deliberate pattern expansion here — still
+# pinned to a single fixed filename prefix, so it can never select sessions/memories.
+for b in "$HOME_C"/logs_2.sqlite.block-backup-*; do
+  [ -e "$b" ] && targets+=("$b")
+done
 
 echo "== Codex one-time cleanup (apply=$APPLY) =="
 echo "Protected (never deleted): $HOME_C/sessions, $HOME_C/memories"
@@ -24,7 +29,7 @@ echo
 total=0
 for t in "${targets[@]}"; do
   if [ -e "$t" ]; then
-    sz=$(du -sk "$t" 2>/dev/null | awk '{print $1}'); total=$((total+sz))
+    sz=$(du -sk "$t" 2>/dev/null | awk '{print $1}'); sz=${sz:-0}; total=$((total+sz))
     printf '  [%s] %s\n' "$(du -sh "$t" 2>/dev/null | awk '{print $1}')" "$t"
     if [ "$APPLY" -eq 1 ]; then rm -rf "$t" && echo "      -> deleted"; fi
   else
@@ -32,12 +37,13 @@ for t in "${targets[@]}"; do
   fi
 done
 printf '\nReclaimable total: ~%s MB\n' "$((total/1024))"
+if [ -e "$HOME_C/computer-use" ] || [ "$APPLY" -eq 1 ]; then
+  echo "Note: computer-use — if your config.toml has a notify = [...] line pointing at"
+  echo "  it, remove that line after deleting; otherwise Codex will try to spawn a"
+  echo "  missing program at the end of every turn and error out."
+fi
 if [ "$APPLY" -eq 0 ]; then
   echo "This was a preview (dry-run); nothing was deleted. Re-run with --apply to delete."
   echo "  codex-disk-cleanup --apply   # when installed"
   echo "  ./bin/codex-disk-cleanup --apply   # when run from the repo"
-else
-  echo "Note: if you deleted computer-use and your config.toml has a notify = [...] line"
-  echo "  pointing at it, remove that line too — otherwise Codex will try to spawn a"
-  echo "  missing program at the end of every turn and error out."
 fi
