@@ -64,3 +64,9 @@ l8_err="$(mktemp)"
 env CDT_PREFIX="$(mktemp -d)/we#ird" CDT_AGENTS_DIR="$(mktemp -d)" CDT_STATE_DIR="$(mktemp -d)" \
     CDT_NO_LAUNCHCTL=1 bash "$ROOT/setup.sh" >/dev/null 2>"$l8_err" || true
 assert_true "setup explains why the path was refused" grep -q 'must not contain' "$l8_err"
+
+# 终审补充: 反斜杠在 sed 替换文本里也有特殊含义，同样要拒绝
+l8b_err="$(mktemp)"
+env CDT_PREFIX="$(mktemp -d)/we\\ird" CDT_AGENTS_DIR="$(mktemp -d)" CDT_STATE_DIR="$(mktemp -d)" \
+    CDT_NO_LAUNCHCTL=1 bash "$ROOT/setup.sh" >/dev/null 2>"$l8b_err" || true
+assert_true "setup refuses CDT_PREFIX containing backslash" grep -q 'must not contain' "$l8b_err"
