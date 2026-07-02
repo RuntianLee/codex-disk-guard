@@ -60,8 +60,9 @@ printf 'ts=%s\ncounter=%s\n' "$now" "$counter" > "$last"
 
 status="PASS"; line=""; reasons=""
 if [ -z "$prev_counter" ] || [ -z "$prev_ts" ]; then
-  # Baseline run: no rate yet, but residual detection already applies.
-  [ -n "$residual" ] && { status="WARN"; reasons="residual"; }
+  # Baseline run: no rate yet, but the WAL size and residual detection already apply.
+  cdt_over "$wal" "$wal_warn" && { status="WARN"; reasons="wal"; }
+  [ -n "$residual" ] && { status="WARN"; reasons="${reasons:+$reasons,}residual"; }
   line="$(date '+%F %T') ${status} baseline counter=${counter} wal=$(cdt_human_bytes "$wal")"
   [ -n "$residual" ] && line="${line} residual=YES"
 else

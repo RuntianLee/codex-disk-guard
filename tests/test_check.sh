@@ -43,3 +43,9 @@ assert_true "long interval warns on rate" bash -c "printf '%s' '$out3' | grep -q
 # L2: 非法阈值环境变量必须回退默认值并在 stderr 提示，而不是静默变 0
 err="$(CODEX_HOME="$h2" CDT_STATE_DIR="$(mktemp -d)" CDT_WAL_WARN_BYTES=abc bash "$CHECK" 2>&1 >/dev/null || true)"
 assert_true "invalid CDT_WAL_WARN_BYTES falls back with a note" bash -c "printf '%s' '$err' | grep -q 'invalid CDT_WAL_WARN_BYTES'"
+
+# 终审补充: baseline 首跑也要对超标的 WAL 告警（不只 residual）
+h3="$(make_fixture_home 3)"
+printf 'x%.0s' 1 2 3 4 5 6 7 8 9 10 > "$h3/logs_2.sqlite-wal"   # 10 字节的假 WAL
+out4="$(CODEX_HOME="$h3" CDT_STATE_DIR="$(mktemp -d)" CDT_WAL_WARN_BYTES=1 bash "$CHECK" --json 2>/dev/null)"
+assert_true "baseline warns on oversized WAL" bash -c "printf '%s' '$out4' | grep -Eq '\"reasons\":\"[^\"]*wal'"
