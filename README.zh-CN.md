@@ -1,5 +1,7 @@
 # codex-disk-guard
 
+[![tests](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml/badge.svg)](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml)
+
 [English](README.md) | **中文**
 
 **在 macOS 上治理 OpenAI Codex CLI 的频繁写盘 —— 监测写入、控制日志库不再膨胀、清理垃圾文件,且绝不动你的会话记录和记忆数据。**
@@ -50,6 +52,16 @@
 - `sqlite3` —— macOS 自带于 `/usr/bin/sqlite3`;若装了 Homebrew 版会自动识别。
 - `bash` —— 兼容系统自带的 bash 3.2,未使用 bash 4+ 特性。
 - 已安装 OpenAI **Codex CLI**(本工具读取/维护 `~/.codex`)。
+
+## 运行测试
+
+测试套件是全封闭的——只在临时 `HOME`/`CODEX_HOME` 夹具里运行,绝不接触你真实的 `~/.codex` 或 launchd:
+
+```bash
+bash tests/run_tests.sh
+```
+
+同一套测试在 CI 上对每次 push 和 PR 自动运行(macOS runner)。
 
 ## 安装
 

@@ -1,5 +1,7 @@
 # codex-disk-guard
 
+[![tests](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml/badge.svg)](https://github.com/RuntianLee/codex-disk-guard/actions/workflows/test.yml)
+
 **English** | [中文](README.zh-CN.md)
 
 **Tame the OpenAI Codex CLI's constant disk writing on macOS — monitor it, keep its log database from growing, and clean up junk, without ever touching your sessions or memories.**
@@ -50,6 +52,16 @@ By default this tool only *observes and tidies* — `codex-disk-maintain` bounds
 - `sqlite3` — ships with macOS at `/usr/bin/sqlite3`; Homebrew's is auto-detected if present.
 - `bash` — works with the system bash 3.2; no bash 4+ features used.
 - The OpenAI **Codex CLI** installed (this tool reads/maintains `~/.codex`).
+
+## Running the tests
+
+The full suite is hermetic — it runs against temp `HOME`/`CODEX_HOME` fixtures and never touches your real `~/.codex` or launchd:
+
+```bash
+bash tests/run_tests.sh
+```
+
+The same suite runs in CI on every push and pull request (macOS runner).
 
 ## Install
 
