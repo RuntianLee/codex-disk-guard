@@ -26,4 +26,9 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 echo "Removed trigger 'cdg_block_logs' — Codex's log inserts are no longer blocked."
+for b in "$(cdt_codex_home)"/logs_2.sqlite.block-backup-*; do
+  [ -e "$b" ] || continue
+  echo "Note: backup left from codex-disk-block: $b"
+  echo "  Remove it when no longer needed: rm \"$b\"  (codex-disk-cleanup --apply also clears it, along with other junk)"
+done
 exit 0

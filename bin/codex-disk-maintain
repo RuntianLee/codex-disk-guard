@@ -22,18 +22,29 @@ esac
 [ -f "$db" ] || { log "no logs db at $db, nothing to do"; exit 0; }
 
 # Short busy_timeout: if we hit a lock, give up this run without corrupting data.
+# Stage 1: prune. Run separately from compaction so the log line can tell the
+# truth — with one combined script, "skipped" could hide an already-committed DELETE.
 cutoff="$(( $(date +%s) - retention*86400 ))"
 out="$("$CDT_SQLITE" "$db" 2>&1 <<SQL
 PRAGMA busy_timeout=2000;
 DELETE FROM logs WHERE ts < $cutoff;
+SQL
+)"
+if [ $? -ne 0 ]; then
+  log "skipped (db busy/locked or error before any change): ${out}"
+  exit 0   # safe skip, not treated as a failure
+fi
+
+# Stage 2: fold the WAL back and compact the file.
+out="$("$CDT_SQLITE" "$db" 2>&1 <<SQL
+PRAGMA busy_timeout=2000;
 PRAGMA wal_checkpoint(TRUNCATE);
 VACUUM;
 SQL
 )"
-rc=$?
-if [ $rc -ne 0 ]; then
-  log "skipped (db busy/locked or error): ${out}"
-  exit 0   # safe skip, not treated as a failure
+if [ $? -ne 0 ]; then
+  log "pruned rows older than ${retention}d, but checkpoint/vacuum skipped (db busy/locked): ${out}"
+  exit 0
 fi
 log "ok: pruned rows older than ${retention}d, checkpointed + vacuumed; size now $(cdt_human_bytes "$(cdt_file_size "$db")")"
 exit 0

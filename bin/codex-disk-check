@@ -29,6 +29,19 @@ now="$(date +%s)"
 wal="$(cdt_wal_size)"
 wal_warn="${CDT_WAL_WARN_BYTES:-8388608}"
 rate_warn="${CDT_LOGS_RATE_WARN_MB_DAY:-50}"
+rate_min_window="${CDT_MIN_RATE_WINDOW_S:-300}"
+
+# Validate the numeric knobs: a typo'd env var must fall back loudly, not
+# silently coerce to 0 in awk and produce phantom WARNs.
+case "$wal_warn" in ''|*[!0-9]*)
+  echo "warn: invalid CDT_WAL_WARN_BYTES='$wal_warn', using 8388608" >&2; wal_warn=8388608 ;;
+esac
+case "$rate_warn" in ''|.|*[!0-9.]*|*.*.*)
+  echo "warn: invalid CDT_LOGS_RATE_WARN_MB_DAY='$rate_warn', using 50" >&2; rate_warn=50 ;;
+esac
+case "$rate_min_window" in ''|*[!0-9]*)
+  echo "warn: invalid CDT_MIN_RATE_WINDOW_S='$rate_min_window', using 300" >&2; rate_min_window=300 ;;
+esac
 
 if [ "$mode" = "measure" ]; then cdt_measure "$measure_secs" "$want_json"; exit $?; fi
 
@@ -45,9 +58,13 @@ fi
 # Write the new sample
 printf 'ts=%s\ncounter=%s\n' "$now" "$counter" > "$last"
 
-status="PASS"; line=""
+status="PASS"; line=""; reasons=""
 if [ -z "$prev_counter" ] || [ -z "$prev_ts" ]; then
-  line="$(date '+%F %T') baseline counter=${counter} wal=$(cdt_human_bytes "$wal")"
+  # Baseline run: no rate yet, but the WAL size and residual detection already apply.
+  cdt_over "$wal" "$wal_warn" && { status="WARN"; reasons="wal"; }
+  [ -n "$residual" ] && { status="WARN"; reasons="${reasons:+$reasons,}residual"; }
+  line="$(date '+%F %T') ${status} baseline counter=${counter} wal=$(cdt_human_bytes "$wal")"
+  [ -n "$residual" ] && line="${line} residual=YES"
 else
   inserted=$(( counter - prev_counter )); [ "$inserted" -lt 0 ] && inserted=0
   elapsed=$(( now - prev_ts )); [ "$elapsed" -le 0 ] && elapsed=1
@@ -55,10 +72,16 @@ else
   # Rough byte-rate estimate using ~150 estimated_bytes per row (for thresholds/trend only)
   bytes=$(( inserted * 150 ))
   mbday="$(cdt_mb_per_day "$bytes" "$elapsed")"
-  cdt_over "$mbday" "$rate_warn" && status="WARN"
-  cdt_over "$wal" "$wal_warn" && status="WARN"
-  [ -n "$residual" ] && status="WARN"
+  # Rate extrapolated from a tiny window is meaningless (two manual runs seconds
+  # apart would "prove" hundreds of MB/day) — only let it WARN past a minimum window.
+  if [ "$elapsed" -ge "$rate_min_window" ]; then
+    cdt_over "$mbday" "$rate_warn" && { status="WARN"; reasons="${reasons}rate,"; }
+  fi
+  cdt_over "$wal" "$wal_warn" && { status="WARN"; reasons="${reasons}wal,"; }
+  [ -n "$residual" ] && { status="WARN"; reasons="${reasons}residual,"; }
+  reasons="${reasons%,}"
   line="$(date '+%F %T') ${status} inserted=${inserted} rows_per_min=${rpm} est_mb_per_day=${mbday} wal=$(cdt_human_bytes "$wal")"
+  [ "$elapsed" -lt "$rate_min_window" ] && line="${line} (interval<${rate_min_window}s: rate shown but not used for WARN)"
   [ -n "$residual" ] && line="${line} residual=YES"
 fi
 
@@ -66,8 +89,9 @@ printf '%s\n' "$line" >> "$report"
 
 if [ "$want_json" -eq 1 ]; then
   ins="${inserted:-0}"; rpm_out="${rpm:-0}"
-  printf '{"status":"%s","inserted":%s,"rows_per_min":%s,"counter":%s,"wal_bytes":%s}\n' \
-    "${status}" "${ins}" "${rpm_out}" "${counter}" "${wal}"
+  res_json=false; [ -n "$residual" ] && res_json=true
+  printf '{"status":"%s","inserted":%s,"rows_per_min":%s,"counter":%s,"wal_bytes":%s,"residual":%s,"reasons":"%s"}\n' \
+    "${status}" "${ins}" "${rpm_out}" "${counter}" "${wal}" "${res_json}" "${reasons}"
 else
   printf '%s\n' "$line"
   [ -n "$residual" ] && { echo "  ⚠ residual writer detected:"; printf '%s\n' "$residual" | sed 's/^/    /'; }

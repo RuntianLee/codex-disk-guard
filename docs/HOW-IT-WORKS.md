@@ -49,17 +49,19 @@ The single source of truth for measurement, sourced by the `bin/` commands.
   `SELECT COALESCE((SELECT seq FROM sqlite_sequence WHERE name='logs'), (SELECT max(id) FROM logs), 0)`.
   *Why this formula:* `sqlite_sequence.seq` keeps rising even after every row is pruned, so it's a true cumulative insert count; `max(id)` is the fallback; `0` covers a missing/empty DB. Two samples → exact inserts in between.
 - **`cdt_sum_fsusage_bytes`** — parses `fs_usage` output and sums the `B=0x…` byte fields of `write`/`pwrite` lines under a target path. *Why the odd split:* macOS's `awk` (BWK) has **no `strtonum`**, so awk only extracts the hex tokens and **bash arithmetic** (`$(( … ))`, which natively understands `0x`) does the addition.
-- **`cdt_measure`** — runs `sudo fs_usage` for N seconds, sums the bytes, and converts to MB/day plus an SSD-lifetime estimate. Kills the `fs_usage` child cleanly so no root sampler is left behind.
-- Helpers: `cdt_human_bytes` (byte → "1.5M"), `cdt_mb_per_day`, `cdt_tbw_years` (lifetime math), `cdt_detect_residual` (spots a leftover daemon: `app-server` / `remote-control` / `SkyComputerUse` process, launchd job, or autostart agent).
+- **`cdt_measure`** — runs `sudo fs_usage` for N seconds, sums the bytes, and converts to MB/day plus an SSD-lifetime estimate. Kills the `fs_usage` child cleanly, and an INT/TERM trap covers Ctrl-C mid-window — either way no root sampler is left behind.
+- Helpers: `cdt_human_bytes` (byte → "1.5M"), `cdt_mb_per_day`, `cdt_tbw_years` (lifetime math), `cdt_detect_residual` (spots a leftover daemon: `app-server` / `remote-control` / `SkyComputerUse` process, launchd job, or autostart agent — and excludes this tool's own `com.user.codex-disk-*` agents, which would otherwise self-trigger a permanent WARN).
 
 ### `bin/codex-disk-check` — the monitor
 - **Passive mode (default, no sudo):** reads `cdt_insert_counter`, compares it to the previous value stored in `last-sample`, and computes inserted rows + rows/min. It appends one line to `report.log` and prints it. First run has no previous sample, so it records a `baseline`.
 - **Thresholds → PASS/WARN:** WARN if the estimated MB/day exceeds `CDT_LOGS_RATE_WARN_MB_DAY` (50), or the WAL exceeds `CDT_WAL_WARN_BYTES` (8 MB), or a residual writer is detected. *Why a passive default:* you can run it (or schedule it) with zero privileges and near-zero overhead.
+- *Rate sanity:* the extrapolated MB/day only counts toward WARN when the sample window is at least `CDT_MIN_RATE_WINDOW_S` (300 s) — two manual runs seconds apart would otherwise "prove" absurd rates. `--json` carries `residual` and `reasons` so machines know *why* a WARN fired.
 - **`--measure [secs]`:** delegates to `cdt_measure` for precise, sudo-based numbers.
 
 ### `bin/codex-disk-maintain` — the maintenance
-Runs, in one SQLite session: `PRAGMA busy_timeout=2000;` then `DELETE FROM logs WHERE ts < (now − retention·86400);` then `PRAGMA wal_checkpoint(TRUNCATE);` then `VACUUM;`.
+Runs two SQLite stages (each with `PRAGMA busy_timeout=2000`): first `DELETE FROM logs WHERE ts < (now − retention·86400);`, then `PRAGMA wal_checkpoint(TRUNCATE); VACUUM;`.
 - *Why this order:* delete old rows, fold the WAL back and truncate it, then compact the file.
+- *Why two stages:* so the log line can tell the truth — a combined script's "skipped" message could hide an already-committed DELETE when only the VACUUM hit a lock.
 - *Why lock-safe:* the short `busy_timeout` means if Codex is mid-write, the run gives up (exit 0, no corruption) rather than fighting for the lock.
 - Retention is validated (`CDT_RETENTION_DAYS`, default 3) so a bad value can't silently turn the scheduled job into a no-op.
 - It touches **only** `logs_2.sqlite` — no `rm`, no other paths.
@@ -70,7 +72,7 @@ Runs the same `--measure` in four labelled scenarios — *idle baseline*, *CLI a
 - *Why these four states:* the CLI only writes while active; the **desktop app adds an idle, 24/7 writer** (its daemon) — that idle churn is the real wear concern, so it gets its own measurement.
 
 ### `bin/codex-disk-cleanup` — the cleanup
-Deletes a **hardcoded** list of obvious junk under `~/.codex` (stale `.bak` files, `.DS_Store`, `.tmp/`, rebuildable caches, the `computer-use/` app).
+Deletes a **hardcoded** list of obvious junk under `~/.codex` (stale `.bak` files, `.DS_Store`, `.tmp/`, rebuildable caches, the `computer-use/` app, and `codex-disk-block`'s `logs_2.sqlite.block-backup-*` backups — the one fixed-prefix pattern in the list).
 - *Why dry-run by default:* it previews and only deletes with `--apply`, so an accidental run can't lose anything.
 - *Why a hardcoded list (never a glob):* `sessions/` and `memories/` can never be selected — the safety is structural, not conditional. A guard also refuses to run if `HOME`/`CODEX_HOME` is unset.
 
@@ -83,7 +85,7 @@ The only lever that actually halts the churn, because it intercepts at the SQLit
 ### `setup.sh` / `uninstall.sh` / `launchd/*.plist.template`
 - `setup.sh` installs the commands to `~/.local/bin`, renders the two plist templates (substituting the real paths) into `~/Library/LaunchAgents`, and loads them. Preflight refuses non-macOS and missing `sqlite3`, and it warns if `~/.local/bin` isn't on your `PATH`.
 - The launchd jobs run **maintain at 03:00** and **check at 03:05** daily, user-level (no root). If the Mac is asleep, launchd catches up on wake.
-- `uninstall.sh` removes exactly what setup created (commands, lib, plists, the whole state dir) and lists them. The only thing it touches in `~/.codex` is the optional block trigger — it drops that if present (lock-safe), restoring normal logging — and it never touches your sessions, memories, log rows, or your own config edits.
+- `uninstall.sh` removes exactly what setup created (commands, lib, plists, its own files in the state dir — the dir itself only when empty, so a user-supplied `CDT_STATE_DIR` holding unrelated files is never blanket-deleted) and lists them. The only thing it touches in `~/.codex` is the optional block trigger — it drops that if present (lock-safe), restoring normal logging. `codex-disk-block`'s DB backups are listed but never deleted (they're copies of your data), and it never touches your sessions, memories, log rows, or your own config edits.
 
 ## 4. The known limitation (stated honestly)
 The active-use writes to `logs_2.sqlite` **cannot be eliminated** by configuration today. This tool keeps that database **bounded and observable** and removes the *idle* and *junk* portions — but it is a mitigation, not a cure. If Codex later ships a switch to disable the sink, that becomes the real fix and this tool becomes a monitor.
