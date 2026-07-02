@@ -4,6 +4,12 @@
 # failure through its return value / output rather than aborting the caller.
 CDT_SQLITE="${CDT_SQLITE:-$(command -v sqlite3 2>/dev/null || echo /usr/bin/sqlite3)}"
 
+# Single source of truth for the launchd label prefix. setup.sh renders it into
+# the plists and job names, uninstall.sh derives the labels from it (with a
+# same-literal fallback the tests keep in sync), and cdt_detect_residual
+# excludes it so the tool never flags its own agents as residual writers.
+CDT_LAUNCHD_LABEL_PREFIX='com.user.codex-disk-'
+
 cdt_codex_home() { printf '%s' "${CODEX_HOME:-$HOME/.codex}"; }
 # Report/state directory (default ~/.local/state/codex-disk). Everything this tool
 # persists lives here: report.log + last-sample (codex-disk-check), bench/*.json
@@ -53,6 +59,21 @@ cdt_block_trigger_installed() {
   [ "${n:-0}" = "1" ]
 }
 
+# Validate numeric env knobs: echo the env var's value when well-formed,
+# otherwise echo the default and note the fallback on stderr — a typo'd value
+# must fail loudly, not silently coerce to 0 in awk and produce phantom WARNs.
+cdt_validate_int() { # <env_name> <default> -> plain non-negative integer
+  local v; v="${!1:-$2}"
+  case "$v" in ''|*[!0-9]*) echo "warn: invalid $1='$v', using $2" >&2; v="$2" ;; esac
+  printf '%s' "$v"
+}
+
+cdt_validate_num() { # <env_name> <default> -> integer or decimal (one dot max)
+  local v; v="${!1:-$2}"
+  case "$v" in ''|.|*[!0-9.]*|*.*.*) echo "warn: invalid $1='$v', using $2" >&2; v="$2" ;; esac
+  printf '%s' "$v"
+}
+
 cdt_over() { # <value> <threshold> -> exit 0 when value > threshold (supports decimals)
   awk -v a="$1" -v b="$2" 'BEGIN{ exit !(a+0 > b+0) }'
 }
@@ -79,7 +100,7 @@ cdt_tbw_years() { # <bytes_per_day> <tbw_tb> -> years, 2 decimals
 # must be excluded, or every scheduled check would WARN on itself forever.
 # (SkyComputerUse is the Codex desktop app's "computer use" helper process, one of
 # the resident writers the desktop app can leave running.)
-CDT_SELF_AGENT_RE='com\.user\.codex-disk-'
+CDT_SELF_AGENT_RE="${CDT_LAUNCHD_LABEL_PREFIX//./\\.}"
 cdt_detect_residual() {
   ps aux | grep -iE 'codex .*(app-server|remote-control)|SkyComputerUse' | grep -v grep \
     | awk '{print "proc:", $2, $11, $12, $13}'

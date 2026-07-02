@@ -5,6 +5,10 @@
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
+# Shared constants (launchd label prefix lives in one place).
+if [ -f "$HERE/lib/common.sh" ]; then source "$HERE/lib/common.sh";
+else echo "error: lib/common.sh not found next to setup.sh" >&2; exit 1; fi
+
 # 0. Preflight: macOS only, and sqlite3 must be present (macOS ships /usr/bin/sqlite3).
 if [ "$(uname)" != "Darwin" ]; then
   echo "error: codex-disk-guard supports macOS only (it relies on launchd / fs_usage)." >&2
@@ -41,16 +45,18 @@ install -m 0755 "$HERE/bin/codex-disk-unblock"  "$PREFIX/codex-disk-unblock"
 install -m 0644 "$HERE/lib/common.sh"           "$PREFIX/lib/common.sh"
 install -m 0755 "$HERE/uninstall.sh"            "$PREFIX/codex-disk-uninstall"
 
-# 2. Render the plists (substitute __PREFIX__ / __STATE__).
-render() { sed -e "s#__PREFIX__#$PREFIX#g" -e "s#__STATE__#$STATE#g" "$1" > "$2"; }
-render "$HERE/launchd/maintain.plist.template" "$AGENTS/com.user.codex-disk-maintain.plist"
-render "$HERE/launchd/check.plist.template"    "$AGENTS/com.user.codex-disk-check.plist"
+# 2. Render the plists (substitute __PREFIX__ / __STATE__ / __LABEL__).
+render() { # <template> <dest> <label>
+  sed -e "s#__PREFIX__#$PREFIX#g" -e "s#__STATE__#$STATE#g" -e "s#__LABEL__#$3#g" "$1" > "$2"
+}
+render "$HERE/launchd/maintain.plist.template" "$AGENTS/${CDT_LAUNCHD_LABEL_PREFIX}maintain.plist" "${CDT_LAUNCHD_LABEL_PREFIX}maintain"
+render "$HERE/launchd/check.plist.template"    "$AGENTS/${CDT_LAUNCHD_LABEL_PREFIX}check.plist"    "${CDT_LAUNCHD_LABEL_PREFIX}check"
 
 # 3. Load the timers (tests can skip the real launchctl with CDT_NO_LAUNCHCTL=1).
 if [ "${CDT_NO_LAUNCHCTL:-0}" != "1" ]; then
-  for lbl in codex-disk-maintain codex-disk-check; do
-    launchctl bootout "gui/$(id -u)/com.user.$lbl" 2>/dev/null || true
-    launchctl bootstrap "gui/$(id -u)" "$AGENTS/com.user.$lbl.plist"
+  for job in maintain check; do
+    launchctl bootout "gui/$(id -u)/${CDT_LAUNCHD_LABEL_PREFIX}$job" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$AGENTS/${CDT_LAUNCHD_LABEL_PREFIX}$job.plist"
   done
 fi
 
@@ -61,8 +67,8 @@ echo "  $PREFIX/codex-disk-bench"
 echo "  $PREFIX/codex-disk-cleanup"
 echo "  $PREFIX/codex-disk-block, $PREFIX/codex-disk-unblock  (advanced, opt-in)"
 echo "  $PREFIX/codex-disk-uninstall"
-echo "  $AGENTS/com.user.codex-disk-maintain.plist (daily 03:00)"
-echo "  $AGENTS/com.user.codex-disk-check.plist (daily 03:05)"
+echo "  $AGENTS/${CDT_LAUNCHD_LABEL_PREFIX}maintain.plist (daily 03:00)"
+echo "  $AGENTS/${CDT_LAUNCHD_LABEL_PREFIX}check.plist (daily 03:05)"
 echo "Check status anytime: codex-disk-check   |   Precise measure: codex-disk-check --measure 60"
 echo "Uninstall: codex-disk-uninstall"
 
