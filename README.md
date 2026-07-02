@@ -135,6 +135,7 @@ All settings are environment variables with sensible defaults:
 | `CDT_RETENTION_DAYS` | `3` | Maintenance keeps log rows newer than this |
 | `CDT_WAL_WARN_BYTES` | `8388608` (8 MB) | Check warns if the WAL grows past this |
 | `CDT_LOGS_RATE_WARN_MB_DAY` | `50` | Check warns if the estimated log write rate exceeds this |
+| `CDT_MIN_RATE_WINDOW_S` | `300` | Minimum seconds between two samples before the estimated rate may trigger WARN (short windows extrapolate wildly) |
 | `CDT_TBW_TB` | `150` | SSD endurance used for the lifetime estimate (an estimate; override for your drive) |
 | `CDT_SQLITE` | auto / `/usr/bin/sqlite3` | sqlite3 binary to use |
 | `CDT_PREFIX` | `~/.local/bin` | Install location for the commands |
@@ -155,7 +156,7 @@ Everything this tool writes lives under your home directory, is configurable, an
 | `codex-disk-block --apply` | backs up to `~/.codex/logs_2.sqlite.block-backup-<timestamp>` and adds a trigger **inside** `~/.codex/logs_2.sqlite` |
 | `codex-disk-unblock` | removes that trigger from `~/.codex/logs_2.sqlite` |
 | daily `launchd` jobs | their stdout/stderr → `~/.local/state/codex-disk/maintain.out.log`, `maintain.err.log`, `check.out.log`, `check.err.log` |
-| `codex-disk-uninstall` | removes all of the above |
+| `codex-disk-uninstall` | removes all of the above **except** `codex-disk-block`'s DB backups — those are copies of your data, so it lists them and leaves deletion to you (or `codex-disk-cleanup --apply`) |
 
 Paths are overridable: `CDT_PREFIX` (commands), `CDT_AGENTS_DIR` (timers), `CDT_STATE_DIR` (reports). The report dir is kept **outside** `~/.codex` on purpose, so monitoring never counts its own writes.
 
@@ -164,7 +165,7 @@ Paths are overridable: `CDT_PREFIX` (commands), `CDT_AGENTS_DIR` (timers), `CDT_
 ## Safety
 
 - **Maintenance only ever touches `logs_2.sqlite`.** It never reads or writes `sessions/` or `memories/`.
-- **Cleanup is dry-run by default** and only deletes a hardcoded list of junk: `logs_2.sqlite.bak`, `.codex-global-state.json.bak`, `.DS_Store`, `.tmp/`, `cache/remote_plugin_catalog/`, and `computer-use/`. `sessions/` and `memories/` are explicitly protected and can never be selected.
+- **Cleanup is dry-run by default** and only deletes a hardcoded list of junk: `logs_2.sqlite.bak`, `.codex-global-state.json.bak`, `.DS_Store`, `.tmp/`, `cache/remote_plugin_catalog/`, `computer-use/`, and `codex-disk-block`'s `logs_2.sqlite.block-backup-*` files (matched by that fixed prefix only). `sessions/` and `memories/` are explicitly protected and can never be selected.
 - Everything installs under your home directory; **no `sudo` is needed** except for the optional `--measure` mode.
 
 ## Uninstall
@@ -174,6 +175,8 @@ codex-disk-uninstall
 ```
 
 Removes the commands, the two launchd jobs, and the report directory. If you used `codex-disk-block`, it also drops that trigger from Codex's log DB (lock-safe), restoring normal logging. It does not change any Codex config you may have edited yourself (that's yours to manage).
+
+One exception: `codex-disk-block`'s DB backups (`logs_2.sqlite.block-backup-*`) are copies of your own data, so uninstall lists them but never deletes them — remove them with `codex-disk-cleanup --apply` or `rm` when you no longer need them.
 
 ## Design & how it works
 
