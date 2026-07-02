@@ -75,14 +75,21 @@ cdt_tbw_years() { # <bytes_per_day> <tbw_tb> -> years, 2 decimals
 
 # Detect a leftover Codex daemon / autostart agent that would keep writing in the
 # background. Echo one line per finding; produce no output when nothing is found.
+# This tool's own launchd agents (com.user.codex-disk-*) also contain "codex" and
+# must be excluded, or every scheduled check would WARN on itself forever.
 # (SkyComputerUse is the Codex desktop app's "computer use" helper process, one of
 # the resident writers the desktop app can leave running.)
+CDT_SELF_AGENT_RE='com\.user\.codex-disk-'
 cdt_detect_residual() {
   ps aux | grep -iE 'codex .*(app-server|remote-control)|SkyComputerUse' | grep -v grep \
     | awk '{print "proc:", $2, $11, $12, $13}'
-  launchctl list 2>/dev/null | grep -i codex | awk '{print "launchd:", $0}'
-  ls "$HOME/Library/LaunchAgents" /Library/LaunchAgents 2>/dev/null \
-    | grep -iE 'codex|openai' | awk '{print "agent:", $0}'
+  launchctl list 2>/dev/null | grep -i codex | grep -vE "$CDT_SELF_AGENT_RE" \
+    | awk '{print "launchd:", $0}'
+  local d
+  for d in "$HOME/Library/LaunchAgents" /Library/LaunchAgents; do
+    ls "$d" 2>/dev/null | grep -iE 'codex|openai' | grep -vE "$CDT_SELF_AGENT_RE" \
+      | awk '{print "agent:", $0}'
+  done
 }
 
 # Read fs_usage text from stdin and sum the B=0x.. byte counts of write/pwrite
