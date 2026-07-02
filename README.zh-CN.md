@@ -135,6 +135,7 @@ codex-disk-bench report           # 出对照表(无需 sudo)
 | `CDT_RETENTION_DAYS` | `3` | 维护时保留多少天内的日志行 |
 | `CDT_WAL_WARN_BYTES` | `8388608`(8 MB) | WAL 超过此值时检查告警 |
 | `CDT_LOGS_RATE_WARN_MB_DAY` | `50` | 估算日志写速超过此值时检查告警 |
+| `CDT_MIN_RATE_WINDOW_S` | `300` | 两次采样间隔小于此秒数时,估算速率不用于触发 WARN(过短窗口的外推严重失真) |
 | `CDT_TBW_TB` | `150` | 用于寿命估算的 SSD 耐久值(估计值,可按你的盘覆盖) |
 | `CDT_SQLITE` | 自动 / `/usr/bin/sqlite3` | 使用的 sqlite3 程序 |
 | `CDT_PREFIX` | `~/.local/bin` | 命令安装位置 |
@@ -155,7 +156,7 @@ codex-disk-bench report           # 出对照表(无需 sudo)
 | `codex-disk-block --apply` | 先备份到 `~/.codex/logs_2.sqlite.block-backup-<时间戳>`,并在 `~/.codex/logs_2.sqlite` **内部**加一个触发器 |
 | `codex-disk-unblock` | 从 `~/.codex/logs_2.sqlite` 移除该触发器 |
 | 每日 `launchd` 定时任务 | 标准输出/错误 → `~/.local/state/codex-disk/maintain.out.log`、`maintain.err.log`、`check.out.log`、`check.err.log` |
-| `codex-disk-uninstall` | 移除以上全部 |
+| `codex-disk-uninstall` | 移除以上全部,**唯一例外**是 `codex-disk-block` 的数据库备份——那是你自己数据的副本,只列出、由你决定删除(或用 `codex-disk-cleanup --apply`) |
 
 路径可覆盖:`CDT_PREFIX`(命令)、`CDT_AGENTS_DIR`(定时任务)、`CDT_STATE_DIR`(报告)。报告目录**刻意放在 `~/.codex` 之外**,这样监测不会把自己写报告也算进 codex 的写入量。
 
@@ -164,7 +165,7 @@ codex-disk-bench report           # 出对照表(无需 sudo)
 ## 安全性
 
 - **维护只会操作 `logs_2.sqlite`**,永不读写 `sessions/` 或 `memories/`。
-- **清理默认只预览**,且只删一份写死的垃圾清单:`logs_2.sqlite.bak`、`.codex-global-state.json.bak`、`.DS_Store`、`.tmp/`、`cache/remote_plugin_catalog/`、`computer-use/`。`sessions/` 和 `memories/` 被显式保护,永远不会被选中。
+- **清理默认只预览**,且只删一份写死的垃圾清单:`logs_2.sqlite.bak`、`.codex-global-state.json.bak`、`.DS_Store`、`.tmp/`、`cache/remote_plugin_catalog/`、`computer-use/`,以及 `codex-disk-block` 的 `logs_2.sqlite.block-backup-*` 备份(仅按这个固定前缀匹配)。`sessions/` 和 `memories/` 被显式保护,永远不会被选中。
 - 一切都装在你的家目录下;**除了可选的 `--measure` 模式外不需要 `sudo`**。
 
 ## 卸载
@@ -174,6 +175,8 @@ codex-disk-uninstall
 ```
 
 删除命令、两个 launchd 任务、报告目录。如果你用过 `codex-disk-block`,它还会(锁安全地)从 Codex 日志库移除那个触发器,恢复正常日志。它不会改动你自己手动编辑过的任何 Codex 配置(那部分由你自行管理)。
+
+唯一例外:`codex-disk-block` 的数据库备份(`logs_2.sqlite.block-backup-*`)是你自己数据的副本,卸载时只列出、永不删除——不再需要时用 `codex-disk-cleanup --apply` 或 `rm` 清掉。
 
 ## 设计与实现
 
