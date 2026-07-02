@@ -5,3 +5,7 @@ tests/
 # Transient
 *.bak
 .DS_Store
+
+# Local working files (security reports, plan docs)
+.gstack/
+docs/superpowers/
