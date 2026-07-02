@@ -52,5 +52,13 @@ SQL
     echo "    sqlite3 \"$logsdb\" \"DROP TRIGGER IF EXISTS cdg_block_logs;\""
   fi
 fi
+# List (but never delete) codex-disk-block DB backups: they are copies of the
+# user's Codex log DB, so removal stays a user decision.
+for b in "${CODEX_HOME:-$HOME/.codex}"/logs_2.sqlite.block-backup-*; do
+  [ -e "$b" ] || continue
+  echo "Note: a codex-disk-block DB backup remains (left in place, it's your data):"
+  echo "  $b"
+  echo "  Remove it when no longer needed: rm \"$b\""
+done
 # Finally remove this uninstaller itself.
 rm -f "$PREFIX/codex-disk-uninstall"
