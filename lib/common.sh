@@ -99,7 +99,11 @@ cdt_detect_residual() {
 cdt_sum_fsusage_bytes() { # <target_path_substring>
   local target="$1" total=0 v
   while IFS= read -r v; do
-    [ -n "$v" ] && total=$(( total + v ))   # v looks like 0x1000; bash arithmetic reads 0x natively
+    # Only well-formed hex may reach arithmetic expansion.
+    case "$v" in
+      0x*[!0-9a-fA-F]*|0x|"") continue ;;
+    esac
+    total=$(( total + v ))   # v looks like 0x1000; bash arithmetic reads 0x natively
   done < <(awk -v t="$target" '
     /(^| )(write|pwrite)( |$)/ && index($0,t) {
       for (i=1;i<=NF;i++) if ($i ~ /^B=0x/) { v=$i; sub(/^B=/,"",v); print v }
@@ -107,22 +111,40 @@ cdt_sum_fsusage_bytes() { # <target_path_substring>
   printf '%d' "$total"
 }
 
+# Interrupted-measure cleanup: killing the shell mid-window must not leave a
+# root fs_usage writing to a temp file forever (this tool must never become
+# the resident disk writer it hunts).
+_cdt_measure_pid=""; _cdt_measure_tmp=""; _cdt_measure_sudo="sudo"
+_cdt_measure_abort() {
+  [ -n "$_cdt_measure_pid" ] && {
+    "$_cdt_measure_sudo" pkill -P "$_cdt_measure_pid" 2>/dev/null
+    "$_cdt_measure_sudo" kill "$_cdt_measure_pid" 2>/dev/null
+  }
+  rm -f "$_cdt_measure_tmp"
+  exit 130
+}
+
 # Precise measurement: run fs_usage for <secs> seconds, sum the bytes written to
 # CODEX_HOME, and convert to a rate. Requires sudo; prints a clear hint if it is
 # unavailable or the session is non-interactive.
+# CDT_SUDO / CDT_FSUSAGE exist only as test seams (defaults: sudo / fs_usage).
 cdt_measure() { # <secs> <want_json>
   local secs="${1:-60}" want_json="${2:-0}"
   local home; home="$(cdt_codex_home)"
   local tmp; tmp="$(mktemp)"
+  local sudo_cmd="${CDT_SUDO:-sudo}" fsusage_cmd="${CDT_FSUSAGE:-fs_usage}"
   echo "Sampling with fs_usage for ${secs}s (needs sudo). Use Codex normally during this window to measure active writes..." >&2
   # -w wide format; -f filesystem limits the trace to filesystem events
-  if ! sudo -v 2>/dev/null; then echo "sudo is required to run fs_usage" >&2; rm -f "$tmp"; return 3; fi
-  sudo fs_usage -w -f filesystem 2>/dev/null > "$tmp" &
+  if ! "$sudo_cmd" -v 2>/dev/null; then echo "sudo is required to run fs_usage" >&2; rm -f "$tmp"; return 3; fi
+  "$sudo_cmd" "$fsusage_cmd" -w -f filesystem 2>/dev/null > "$tmp" &
   local fpid=$!
+  _cdt_measure_pid="$fpid"; _cdt_measure_tmp="$tmp"; _cdt_measure_sudo="$sudo_cmd"
+  trap _cdt_measure_abort INT TERM
   sleep "$secs"
+  trap - INT TERM
   # Kill the sudo child first (the real fs_usage), then the sudo wrapper, so no
   # root sampling process is left running.
-  sudo pkill -P "$fpid" 2>/dev/null; sudo kill "$fpid" 2>/dev/null; wait "$fpid" 2>/dev/null
+  "$sudo_cmd" pkill -P "$fpid" 2>/dev/null; "$sudo_cmd" kill "$fpid" 2>/dev/null; wait "$fpid" 2>/dev/null
   local bytes; bytes="$(cdt_sum_fsusage_bytes "$home" < "$tmp")"
   rm -f "$tmp"
   local mbday; mbday="$(cdt_mb_per_day "$bytes" "$secs")"
